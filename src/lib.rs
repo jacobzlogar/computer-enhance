@@ -1,6 +1,3 @@
-pub mod emulator;
-pub mod instructions;
-
 pub fn parse_twos_complement_int(int: isize, is_16_bit: bool) -> isize {
     if is_16_bit {
         let mut val = int as i16;
