@@ -1,22 +1,16 @@
-use std::{env, error::Error, fmt::Display, slice::Iter};
+use std::{env, error::Error, fmt::Display, slice::Iter, iter::Peekable};
+use computer_enhance::parse_twos_complement_int;
 
-fn parse_twos_complement_int(int: isize, is_16_bit: bool) -> isize {
-    if is_16_bit {
-        let mut val = int as i16;
-        if int >> 15 == 1 {
-            val = !val + 1;
-            val = -val;
-        }
-        return val as isize;
-    } else {
-        let mut val = int as i8;
-        if int >> 7 == 1 {
-            val = !val + 1;
-            val = -val;
-        }
-        return val as isize;
-    }
+type ChunkIter<'a> = &'a mut Iter<'a, u8>;
+
+#[repr(u8)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+enum ArithOperation {
+    Add = 0b000,
+    Sub = 0b101,
+    Cmp = 0b111
 }
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 enum MovMnemonic {
     ImmediateToRegisterMemory,
@@ -27,9 +21,14 @@ enum MovMnemonic {
     SegmentRegisterToRegisterMemory,
     ImmediateToRegister,
 }
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+enum ArithMnemonic {
+    ImmediateToRegisterMemory,
+}
 #[derive(Debug)]
 enum Opcode {
     Mov(MovMnemonic),
+    Arithmetic(ArithMnemonic)
 }
 #[derive(Debug)]
 struct Instruction {
@@ -37,7 +36,12 @@ struct Instruction {
     mask: u8,
     bit_shift: u8,
 }
-const OPCODE_TABLE: [Instruction; 7] = [
+const OPCODE_TABLE: [Instruction; 8] = [
+    Instruction {
+        opcode: Opcode::Arithmetic(ArithMnemonic::ImmediateToRegisterMemory),
+        mask: 0b100000,
+        bit_shift: 2,
+    },
     Instruction {
         opcode: Opcode::Mov(MovMnemonic::RegisterMemoryToRegister),
         mask: 0b100010,
@@ -230,9 +234,9 @@ impl Display for MovTarget {
     }
 }
 
-impl<'a> TryFrom<(u8, Mode, &'a mut Iter<'a, u8>)> for MovTarget {
+impl<'a> TryFrom<(u8, Mode, ChunkIter<'a>)> for MovTarget {
     type Error = &'static str;
-    fn try_from(value: (u8, Mode, &mut Iter<u8>)) -> Result<Self, Self::Error> {
+    fn try_from(value: (u8, Mode, ChunkIter<'a>)) -> Result<Self, Self::Error> {
         let register_map = [
             (RegisterTarget::BX, Some(RegisterTarget::SI)),
             (RegisterTarget::BX, Some(RegisterTarget::DI)),
@@ -316,9 +320,9 @@ impl Mov {
             dest: None,
         }
     }
-    fn handle_immediate_to_register(
+    fn handle_immediate_to_register<'a>(
         &mut self,
-        chunk: &mut Iter<u8>,
+        chunk: ChunkIter<'a>
     ) -> Result<&mut Self, Box<dyn Error>> {
         self.wide = (self.opcode_byte >> 3) & 1 != 0;
         if self.wide {
@@ -334,7 +338,7 @@ impl Mov {
     }
     fn handle_memory_register_to_register<'a>(
         &mut self,
-        chunk: &'a mut Iter<'a, u8>,
+        chunk: ChunkIter<'a>
     ) -> Result<&mut Self, Box<dyn Error>> {
         self.wide = self.opcode_byte & 1 == 1;
         let reversed = self.opcode_byte & 2 == 2;
@@ -359,7 +363,7 @@ impl Mov {
             },
             _ => {
                 let source = RegisterTarget::try_from((self.wide, reg_bits))?;
-                let dest = MovTarget::try_from((reg_bits, mode, chunk))?;
+                let dest = MovTarget::try_from((rm_bits, mode, chunk))?;
                 match reversed {
                     true => {
                         self.source = Some(MovTarget::RegisterToRegister(source));
@@ -374,7 +378,7 @@ impl Mov {
         }
         Ok(self)
     }
-    fn parse<'a>(&mut self, chunk: &'a mut Iter<'a, u8>) -> Result<&mut Self, Box<dyn Error>> {
+    fn parse<'a>(&mut self, chunk: ChunkIter<'a>) -> Result<&mut Self, Box<dyn Error>> {
         match self.mnemonic {
             MovMnemonic::ImmediateToRegister => self.handle_immediate_to_register(chunk),
             MovMnemonic::ImmediateToRegisterMemory => self.handle_immediate_to_register(chunk),
@@ -396,11 +400,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let mut op = Mov::new(mnemonic.clone(), byte.clone());
                         op.parse(&mut iter.clone())?;
                         println!("{op}");
+                    },
+                    Opcode::Arithmetic(mnemonic) => {
+                        println!("{:08b}", byte);
+                        let next = iter.next().unwrap();
+                        println!("{:08b}", next);
                     }
                 }
             }
         }
     }
-
     Ok(())
 }
