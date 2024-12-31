@@ -101,33 +101,48 @@ enum RegisterTarget {
     DI,
 }
 
-impl TryFrom<(bool, u8)> for RegisterTarget {
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum OpcodeByte {
+    RegisterMemoryToRegister { wide: bool, reg_rm_bits: u8, displacement: bool},
+    ImmediateToRegister { wide: bool, reg_bits: u8 }
+}
+
+impl TryFrom<OpcodeByte> for RegisterTarget {
     type Error = &'static str;
-    fn try_from(value: (bool, u8)) -> Result<Self, Self::Error> {
-        if value.0 {
-            match value.1 {
-                0x00 => Ok(Self::AX),
-                0x01 => Ok(Self::CX),
-                0x02 => Ok(Self::DX),
-                0x03 => Ok(Self::BX),
-                0x04 => Ok(Self::SP),
-                0x05 => Ok(Self::BP),
-                0x06 => Ok(Self::SI),
-                0x07 => Ok(Self::DI),
-                _ => Err("Not a 16-bit register".into()),
+    fn try_from(value: OpcodeByte) -> Result<Self, Self::Error> {
+        match value {
+            OpcodeByte::RegisterMemoryToRegister {
+                wide,
+                reg_rm_bits,
+                displacement
+            } => {
+                if wide {
+                    match reg_rm_bits {
+                        0x00 => Ok(Self::AX),
+                        0x01 => Ok(Self::CX),
+                        0x02 => Ok(Self::DX),
+                        0x03 => Ok(Self::BX),
+                        0x04 => Ok(Self::SP),
+                        0x05 => Ok(Self::BP),
+                        0x06 => Ok(Self::SI),
+                        0x07 => Ok(Self::DI),
+                        _ => Err("Not a 16-bit register".into()),
+                    }
+                } else {
+                    match reg_rm_bits {
+                        0x00 => Ok(Self::AL),
+                        0x01 => Ok(Self::CL),
+                        0x02 => Ok(Self::DL),
+                        0x03 => Ok(Self::BL),
+                        0x04 => Ok(Self::AH),
+                        0x05 => Ok(Self::CH),
+                        0x06 => Ok(Self::DH),
+                        0x07 => Ok(Self::BH),
+                        _ => Err("Not an 8-bit register".into()),
+                    }
+                }
             }
-        } else {
-            match value.1 {
-                0x00 => Ok(Self::AL),
-                0x01 => Ok(Self::CL),
-                0x02 => Ok(Self::DL),
-                0x03 => Ok(Self::BL),
-                0x04 => Ok(Self::AH),
-                0x05 => Ok(Self::CH),
-                0x06 => Ok(Self::DH),
-                0x07 => Ok(Self::BH),
-                _ => Err("Not an 8-bit register".into()),
-            }
+            _ => Err("Not a valid register to register opcode")
         }
     }
 }
@@ -334,7 +349,10 @@ impl Mov {
             let data = chunk.next().unwrap();
             self.value = parse_twos_complement_int(*data as isize, false);
         }
-        let target = RegisterTarget::try_from((self.wide, self.opcode_byte & 7))?;
+        let target = RegisterTarget::try_from(OpcodeByte::ImmediateToRegister {
+            wide: self.wide,
+            reg_bits: self.opcode_byte & 7
+        })?;
         self.source = Some(MovTarget::RegisterToRegister(target));
         Ok(self)
     }
@@ -345,15 +363,23 @@ impl Mov {
     ) -> Result<&mut Self, Box<dyn Error>> {
         self.wide = self.opcode_byte & 1 == 1;
         let reversed = self.opcode_byte & 2 == 2;
+        let displacement = self.opcode_byte & 3 == 3;
         let data_byte = chunk.next().unwrap();
-        println!("{:08b}", data_byte);
         let mode = Mode::try_from((data_byte) >> 6 & 3)?;
         let reg_bits = (data_byte >> 3) & 7;
         let rm_bits = data_byte & 7;
+        let source = RegisterTarget::try_from(OpcodeByte::RegisterMemoryToRegister {
+            wide: self.wide,
+            reg_rm_bits: reg_bits,
+            displacement
+        })?;
         match mode {
             Mode::RegisterMode => {
-                let source = RegisterTarget::try_from((self.wide, reg_bits))?;
-                let dest = RegisterTarget::try_from((self.wide, rm_bits))?;
+                let dest = RegisterTarget::try_from(OpcodeByte::RegisterMemoryToRegister {
+                    wide: self.wide,
+                    reg_rm_bits: rm_bits,
+                    displacement
+                })?;
                 match reversed {
                     true => {
                         self.source = Some(MovTarget::RegisterToRegister(source));
@@ -366,7 +392,7 @@ impl Mov {
                 }
             },
             _ => {
-                let source = RegisterTarget::try_from((self.wide, reg_bits))?;
+                // let source = RegisterTarget::try_from((self.wide, reg_bits))?;
                 let dest = MovTarget::try_from((rm_bits, mode, chunk))?;
                 match reversed {
                     true => {
@@ -388,6 +414,8 @@ impl Mov {
             MovMnemonic::ImmediateToRegister => self.handle_immediate_to_register(chunk),
             MovMnemonic::ImmediateToRegisterMemory => self.handle_immediate_to_register(chunk),
             MovMnemonic::RegisterMemoryToRegister => self.handle_memory_register_to_register(chunk),
+            // MovMnemonic::AccumulatorToMemory => self.handle_memory_register_to_register(chunk),
+            // MovMnemonic::MemoryToAccumulator => self.handle_memory_register_to_register(chunk),
             _ => Err("Unsupported variant".into()),
         }
     }
@@ -395,7 +423,6 @@ impl Mov {
 
 fn run(iter: ChunkIter) -> Result<(), Box<dyn Error>> {
     while let Some(byte) = iter.next() {
-        println!("{:08b}", byte);
         for opcode in OPCODE_TABLE {
             if (*byte >> opcode.bit_shift) == opcode.mask {
                 match opcode.opcode {
