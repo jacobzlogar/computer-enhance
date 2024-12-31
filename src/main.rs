@@ -1,7 +1,34 @@
-use std::{env, error::Error, fmt::Display, slice::Iter, iter::Peekable};
+use std::{collections::HashMap, env, error::Error, fmt::Display, iter::Peekable, slice::Iter};
 use computer_enhance::parse_twos_complement_int;
 
 type ChunkIter<'a> = &'a mut Iter<'a, u8>;
+
+#[derive(Debug)]
+struct Cpu {
+    registers: HashMap<RegisterTarget, u16>
+}
+
+impl Cpu {
+    fn new() -> Self {
+        Self {
+            registers: HashMap::new()
+        }
+    }
+    fn mov(&mut self, dest: Option<MovTarget>, source: Option<MovTarget>, value: isize) {
+        println!("{:?} {:?} {:?} {value}", self.registers, dest, source);
+        match (dest, source) {
+            (None, Some(MovTarget::RegisterToRegister(reg))) => {
+                self.registers.entry(reg).or_insert(value as u16);
+            },
+            (Some(MovTarget::RegisterToRegister(dest)), Some(MovTarget::RegisterToRegister(source))) => {
+                let source_value = *self.registers.get(&source).unwrap();
+                *self.registers.entry(dest)
+                    .or_insert(0) = source_value;
+            },
+            _ => ()
+        }
+    }
+}
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -25,7 +52,7 @@ enum MovMnemonic {
 enum ArithMnemonic {
     ImmediateToRegisterMemory,
 }
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 enum Opcode {
     Mov(MovMnemonic),
     Arithmetic(ArithMnemonic)
@@ -36,7 +63,6 @@ struct Instruction {
     mask: u8,
     bit_shift: u8,
 }
-
 const OPCODE_TABLE: [Instruction; 8] = [
     Instruction {
         opcode: Opcode::Arithmetic(ArithMnemonic::ImmediateToRegisterMemory),
@@ -81,7 +107,7 @@ const OPCODE_TABLE: [Instruction; 8] = [
 ];
 
 #[repr(u8)]
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 enum RegisterTarget {
     AL,
     CL,
@@ -101,48 +127,33 @@ enum RegisterTarget {
     DI,
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum OpcodeByte {
-    RegisterMemoryToRegister { wide: bool, reg_rm_bits: u8, displacement: bool},
-    ImmediateToRegister { wide: bool, reg_bits: u8 }
-}
-
-impl TryFrom<OpcodeByte> for RegisterTarget {
+impl TryFrom<(bool, u8)> for RegisterTarget {
     type Error = &'static str;
-    fn try_from(value: OpcodeByte) -> Result<Self, Self::Error> {
-        match value {
-            OpcodeByte::RegisterMemoryToRegister {
-                wide,
-                reg_rm_bits,
-                displacement
-            } => {
-                if wide {
-                    match reg_rm_bits {
-                        0x00 => Ok(Self::AX),
-                        0x01 => Ok(Self::CX),
-                        0x02 => Ok(Self::DX),
-                        0x03 => Ok(Self::BX),
-                        0x04 => Ok(Self::SP),
-                        0x05 => Ok(Self::BP),
-                        0x06 => Ok(Self::SI),
-                        0x07 => Ok(Self::DI),
-                        _ => Err("Not a 16-bit register".into()),
-                    }
-                } else {
-                    match reg_rm_bits {
-                        0x00 => Ok(Self::AL),
-                        0x01 => Ok(Self::CL),
-                        0x02 => Ok(Self::DL),
-                        0x03 => Ok(Self::BL),
-                        0x04 => Ok(Self::AH),
-                        0x05 => Ok(Self::CH),
-                        0x06 => Ok(Self::DH),
-                        0x07 => Ok(Self::BH),
-                        _ => Err("Not an 8-bit register".into()),
-                    }
-                }
+    fn try_from(value: (bool, u8)) -> Result<Self, Self::Error> {
+        if value.0 {
+            match value.1 {
+                0x00 => Ok(Self::AX),
+                0x01 => Ok(Self::CX),
+                0x02 => Ok(Self::DX),
+                0x03 => Ok(Self::BX),
+                0x04 => Ok(Self::SP),
+                0x05 => Ok(Self::BP),
+                0x06 => Ok(Self::SI),
+                0x07 => Ok(Self::DI),
+                _ => Err("Not a 16-bit register".into()),
             }
-            _ => Err("Not a valid register to register opcode")
+        } else {
+            match value.1 {
+                0x00 => Ok(Self::AL),
+                0x01 => Ok(Self::CL),
+                0x02 => Ok(Self::DL),
+                0x03 => Ok(Self::BL),
+                0x04 => Ok(Self::AH),
+                0x05 => Ok(Self::CH),
+                0x06 => Ok(Self::DH),
+                0x07 => Ok(Self::BH),
+                _ => Err("Not an 8-bit register".into()),
+            }
         }
     }
 }
@@ -310,16 +321,16 @@ impl Display for Mov {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match (&self.source, &self.dest) {
             (Some(src), Some(dest)) => {
-                return write!(f, "mov {}, {}", src, dest);
+                return write!(f, "mov {}, {}", dest, src);
+            }
+            (None, None) => {
+                panic!("this should be impossible")
             }
             (None, Some(dest)) => {
                 return write!(f, "mov {}, {}", dest, self.value);
             }
             (Some(src), None) => {
                 return write!(f, "mov {}, {}", src, self.value);
-            }
-            _ => {
-                panic!("this should be impossible")
             }
         }
     }
@@ -336,7 +347,6 @@ impl Mov {
             dest: None,
         }
     }
-
     fn handle_immediate_to_register<'a>(
         &mut self,
         chunk: ChunkIter<'a>
@@ -349,50 +359,36 @@ impl Mov {
             let data = chunk.next().unwrap();
             self.value = parse_twos_complement_int(*data as isize, false);
         }
-        let target = RegisterTarget::try_from(OpcodeByte::ImmediateToRegister {
-            wide: self.wide,
-            reg_bits: self.opcode_byte & 7
-        })?;
+        let target = RegisterTarget::try_from((self.wide, self.opcode_byte & 7))?;
         self.source = Some(MovTarget::RegisterToRegister(target));
         Ok(self)
     }
-
     fn handle_memory_register_to_register<'a>(
         &mut self,
         chunk: ChunkIter<'a>
     ) -> Result<&mut Self, Box<dyn Error>> {
         self.wide = self.opcode_byte & 1 == 1;
         let reversed = self.opcode_byte & 2 == 2;
-        let displacement = self.opcode_byte & 3 == 3;
         let data_byte = chunk.next().unwrap();
         let mode = Mode::try_from((data_byte) >> 6 & 3)?;
         let reg_bits = (data_byte >> 3) & 7;
         let rm_bits = data_byte & 7;
-        let source = RegisterTarget::try_from(OpcodeByte::RegisterMemoryToRegister {
-            wide: self.wide,
-            reg_rm_bits: reg_bits,
-            displacement
-        })?;
         match mode {
             Mode::RegisterMode => {
-                let dest = RegisterTarget::try_from(OpcodeByte::RegisterMemoryToRegister {
-                    wide: self.wide,
-                    reg_rm_bits: rm_bits,
-                    displacement
-                })?;
+                let source = RegisterTarget::try_from((self.wide, reg_bits))?;
+                let dest = RegisterTarget::try_from((self.wide, rm_bits))?;
+                self.source = Some(MovTarget::RegisterToRegister(source));
+                self.dest = Some(MovTarget::RegisterToRegister(dest));
                 match reversed {
                     true => {
-                        self.source = Some(MovTarget::RegisterToRegister(source));
-                        self.dest = Some(MovTarget::RegisterToRegister(dest));
-                    },
-                    false => {
-                        self.source = Some(MovTarget::RegisterToRegister(dest));
                         self.dest = Some(MovTarget::RegisterToRegister(source));
-                    }
+                        self.source = Some(MovTarget::RegisterToRegister(dest));
+                    },
+                    _ => ()
                 }
             },
             _ => {
-                // let source = RegisterTarget::try_from((self.wide, reg_bits))?;
+                let source = RegisterTarget::try_from((self.wide, reg_bits))?;
                 let dest = MovTarget::try_from((rm_bits, mode, chunk))?;
                 match reversed {
                     true => {
@@ -408,20 +404,22 @@ impl Mov {
         }
         Ok(self)
     }
-
     fn parse<'a>(&mut self, chunk: ChunkIter<'a>) -> Result<&mut Self, Box<dyn Error>> {
         match self.mnemonic {
             MovMnemonic::ImmediateToRegister => self.handle_immediate_to_register(chunk),
             MovMnemonic::ImmediateToRegisterMemory => self.handle_immediate_to_register(chunk),
             MovMnemonic::RegisterMemoryToRegister => self.handle_memory_register_to_register(chunk),
-            // MovMnemonic::AccumulatorToMemory => self.handle_memory_register_to_register(chunk),
-            // MovMnemonic::MemoryToAccumulator => self.handle_memory_register_to_register(chunk),
             _ => Err("Unsupported variant".into()),
         }
     }
 }
 
-fn run(iter: ChunkIter) -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
+    let mut cpu = Cpu::new();
+    let args: Vec<String> = env::args().collect();
+    let path = format!("{}/listings/part1/{}", env!("CARGO_MANIFEST_DIR"), args[1]);
+    let binary = std::fs::read(path)?;
+    let mut iter = binary.iter();
     while let Some(byte) = iter.next() {
         for opcode in OPCODE_TABLE {
             if (*byte >> opcode.bit_shift) == opcode.mask {
@@ -429,69 +427,18 @@ fn run(iter: ChunkIter) -> Result<(), Box<dyn Error>> {
                     Opcode::Mov(mnemonic) => {
                         let mut op = Mov::new(mnemonic.clone(), byte.clone());
                         op.parse(&mut iter.clone())?;
-                        println!("{op}");
+                        cpu.mov(op.dest.clone(), op.source.clone(), op.value);
+                        // println!("{op}");
                     },
                     Opcode::Arithmetic(mnemonic) => {
-                        // println!("{:08b}", byte);
-                        // let next = iter.next().unwrap();
-                        // println!("{:08b}", next);
+                        println!("{:08b}", byte);
+                        let next = iter.next().unwrap();
+                        println!("{:08b}", next);
                     }
                 }
             }
         }
     }
+    println!("{:?}", cpu.registers);
     Ok(())
-}
-
-fn main() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = env::args().collect();
-    let path = format!("{}/listings/part1/{}", env!("CARGO_MANIFEST_DIR"), args[1]);
-    let binary = std::fs::read(path)?;
-    let mut iter = binary.iter();
-    run(&mut iter)?;
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::run;
-
-    fn clean_asm_file(path: &str) {
-        let asm_path = format!("{}/listings/{}.asm", env!("CARGO_MANIFEST_DIR"), path);
-        let mut asm = std::fs::read_to_string(&asm_path).expect(&format!("Can't find .asm {}", asm_path));
-    }
-
-    fn read_binary_input(path: &str) -> Vec<u8> {
-        let path = format!("{}/listings/part1/{}", env!("CARGO_MANIFEST_DIR"), &path);
-        std::fs::read(path.clone()).expect(&format!("Can't find {}", path))
-    }
-
-    #[test]
-    fn test_single_register_mov() {
-        let listing = "listing_0037_single_register_mov";
-        let binary = read_binary_input(listing);
-        let iter = binary.iter();
-        let asm = clean_asm_file(listing);
-        let _ = run(&mut iter.clone());
-    }
-
-    #[test]
-    fn test_many_register_mov() {
-        let binary = read_binary_input("listing_0038_many_register_mov");
-        let iter = binary.iter();
-        let _ = run(&mut iter.clone());
-    }
-    #[test]
-    fn test_more_movs() {
-        let binary = read_binary_input("listing_0039_more_movs");
-        let iter = binary.iter();
-        let _ = run(&mut iter.clone());
-    }
-    #[test]
-    fn test_challenge_movs() {
-        let path = format!("{}/listings/listing_0040_challenge_movs", env!("CARGO_MANIFEST_DIR"));
-        let binary = std::fs::read(&path).expect(&format!("Can't find {}", path));
-        let iter = binary.iter();
-        let _ = run(&mut iter.clone());
-    }
 }

@@ -16,6 +16,5 @@
 
 bits 16
 
-; Register-to-register
-add bh, [bp + si + 4]
-
+mov dx, sp
+mov sp, ax
