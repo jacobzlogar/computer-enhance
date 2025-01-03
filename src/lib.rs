@@ -1,3 +1,9 @@
+pub mod instructions;
+pub mod opcodes;
+pub mod registers;
+
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
 pub fn parse_twos_complement_int(int: isize, is_16_bit: bool) -> isize {
     if is_16_bit {
         let mut val = int as i16;
@@ -15,4 +21,3 @@ pub fn parse_twos_complement_int(int: isize, is_16_bit: bool) -> isize {
         return val as isize;
     }
 }
-

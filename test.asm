@@ -16,5 +16,4 @@
 
 bits 16
 
-mov dx, sp
-mov sp, ax
+add ax, [bx+si+12]

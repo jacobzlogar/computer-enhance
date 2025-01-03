@@ -1,17 +1,17 @@
-use std::{collections::HashMap, env, error::Error, fmt::Display, iter::Peekable, slice::Iter};
 use computer_enhance::parse_twos_complement_int;
+use std::{collections::HashMap, env, error::Error, fmt::Display, iter::Peekable, slice::Iter};
 
 type ChunkIter<'a> = &'a mut Iter<'a, u8>;
 
 #[derive(Debug)]
 struct Cpu {
-    registers: HashMap<RegisterTarget, u16>
+    registers: HashMap<RegisterTarget, u16>,
 }
 
 impl Cpu {
     fn new() -> Self {
         Self {
-            registers: HashMap::new()
+            registers: HashMap::new(),
         }
     }
     fn mov(&mut self, dest: Option<MovTarget>, source: Option<MovTarget>, value: isize) {
@@ -19,13 +19,15 @@ impl Cpu {
         match (dest, source) {
             (None, Some(MovTarget::RegisterToRegister(reg))) => {
                 self.registers.entry(reg).or_insert(value as u16);
-            },
-            (Some(MovTarget::RegisterToRegister(dest)), Some(MovTarget::RegisterToRegister(source))) => {
+            }
+            (
+                Some(MovTarget::RegisterToRegister(dest)),
+                Some(MovTarget::RegisterToRegister(source)),
+            ) => {
                 let source_value = *self.registers.get(&source).unwrap();
-                *self.registers.entry(dest)
-                    .or_insert(0) = source_value;
-            },
-            _ => ()
+                *self.registers.entry(dest).or_insert(0) = source_value;
+            }
+            _ => (),
         }
     }
 }
@@ -35,7 +37,7 @@ impl Cpu {
 enum ArithOperation {
     Add = 0b000,
     Sub = 0b101,
-    Cmp = 0b111
+    Cmp = 0b111,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -55,7 +57,7 @@ enum ArithMnemonic {
 #[derive(Debug, Copy, Clone)]
 enum Opcode {
     Mov(MovMnemonic),
-    Arithmetic(ArithMnemonic)
+    Arithmetic(ArithMnemonic),
 }
 #[derive(Debug)]
 struct Instruction {
@@ -349,7 +351,7 @@ impl Mov {
     }
     fn handle_immediate_to_register<'a>(
         &mut self,
-        chunk: ChunkIter<'a>
+        chunk: ChunkIter<'a>,
     ) -> Result<&mut Self, Box<dyn Error>> {
         self.wide = (self.opcode_byte >> 3) & 1 != 0;
         if self.wide {
@@ -365,7 +367,7 @@ impl Mov {
     }
     fn handle_memory_register_to_register<'a>(
         &mut self,
-        chunk: ChunkIter<'a>
+        chunk: ChunkIter<'a>,
     ) -> Result<&mut Self, Box<dyn Error>> {
         self.wide = self.opcode_byte & 1 == 1;
         let reversed = self.opcode_byte & 2 == 2;
@@ -383,10 +385,10 @@ impl Mov {
                     true => {
                         self.dest = Some(MovTarget::RegisterToRegister(source));
                         self.source = Some(MovTarget::RegisterToRegister(dest));
-                    },
-                    _ => ()
+                    }
+                    _ => (),
                 }
-            },
+            }
             _ => {
                 let source = RegisterTarget::try_from((self.wide, reg_bits))?;
                 let dest = MovTarget::try_from((rm_bits, mode, chunk))?;
@@ -394,13 +396,13 @@ impl Mov {
                     true => {
                         self.source = Some(MovTarget::RegisterToRegister(source));
                         self.dest = Some(dest);
-                    },
+                    }
                     false => {
                         self.source = Some(dest);
                         self.dest = Some(MovTarget::RegisterToRegister(source));
                     }
                 }
-            },
+            }
         }
         Ok(self)
     }
@@ -421,6 +423,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let binary = std::fs::read(path)?;
     let mut iter = binary.iter();
     while let Some(byte) = iter.next() {
+        println!("{:08b}", byte);
         for opcode in OPCODE_TABLE {
             if (*byte >> opcode.bit_shift) == opcode.mask {
                 match opcode.opcode {
@@ -429,7 +432,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         op.parse(&mut iter.clone())?;
                         cpu.mov(op.dest.clone(), op.source.clone(), op.value);
                         // println!("{op}");
-                    },
+                    }
                     Opcode::Arithmetic(mnemonic) => {
                         println!("{:08b}", byte);
                         let next = iter.next().unwrap();
