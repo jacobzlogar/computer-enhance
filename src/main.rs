@@ -424,23 +424,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut iter = binary.iter();
     while let Some(byte) = iter.next() {
         println!("{:08b}", byte);
-        for opcode in OPCODE_TABLE {
-            if (*byte >> opcode.bit_shift) == opcode.mask {
-                match opcode.opcode {
-                    Opcode::Mov(mnemonic) => {
-                        let mut op = Mov::new(mnemonic.clone(), byte.clone());
-                        op.parse(&mut iter.clone())?;
-                        cpu.mov(op.dest.clone(), op.source.clone(), op.value);
-                        // println!("{op}");
-                    }
-                    Opcode::Arithmetic(mnemonic) => {
-                        println!("{:08b}", byte);
-                        let next = iter.next().unwrap();
-                        println!("{:08b}", next);
-                    }
-                }
-            }
-        }
+        // for opcode in OPCODE_TABLE {
+        //     if (*byte >> opcode.bit_shift) == opcode.mask {
+        //         match opcode.opcode {
+        //             Opcode::Mov(mnemonic) => {
+        //                 let mut op = Mov::new(mnemonic.clone(), byte.clone());
+        //                 op.parse(&mut iter.clone())?;
+        //                 cpu.mov(op.dest.clone(), op.source.clone(), op.value);
+        //                 // println!("{op}");
+        //             }
+        //             Opcode::Arithmetic(mnemonic) => {
+        //                 println!("{:08b}", byte);
+        //                 let next = iter.next().unwrap();
+        //                 println!("{:08b}", next);
+        //             }
+        //         }
+        //     }
+        // }
     }
     println!("{:?}", cpu.registers);
     Ok(())

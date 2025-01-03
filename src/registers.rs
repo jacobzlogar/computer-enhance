@@ -79,11 +79,12 @@ pub struct RegisterMemoryEncoding<'a> {
     pub rm: u8,
     pub mode: Mode,
     pub wide: bool,
-    pub iter: &'a mut std::slice::Iter<'a, u8>
+    pub iter: &'a mut std::slice::Iter<'a, u8>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum RegisterMemory {
+    SegmentRegister(SegmentRegister),
     Register(Register),
     CombineRegisters(Register, Register),
     DirectAddress,
@@ -104,19 +105,28 @@ impl<'a> TryFrom<RegisterMemoryEncoding<'a>> for RegisterMemory {
                 let register_memory = MEMORY_MODE_DISPLACEMENT_ENCODING[value.rm as usize];
                 match register_memory {
                     Self::CombineRegistersData(dest, source, _) => {
-                        return Ok(Self::CombineRegistersData(dest, source, *displacement as isize));
+                        return Ok(Self::CombineRegistersData(
+                            dest,
+                            source,
+                            *displacement as isize,
+                        ));
                     }
-                    _ => Err("Something has gone terribly wrong")
+                    _ => Err("Something has gone terribly wrong"),
                 }
             }
             Mode::MemoryModeDisplacementWide => {
-                let displacement = u16::from_le_bytes([*value.iter.next().unwrap(), *value.iter.next().unwrap()]);
+                let displacement =
+                    u16::from_le_bytes([*value.iter.next().unwrap(), *value.iter.next().unwrap()]);
                 let register_memory = MEMORY_MODE_DISPLACEMENT_WIDE_ENCODING[value.rm as usize];
                 match register_memory {
                     Self::CombineRegistersDataWide(dest, source, _) => {
-                        return Ok(Self::CombineRegistersDataWide(dest, source, displacement as isize));
+                        return Ok(Self::CombineRegistersDataWide(
+                            dest,
+                            source,
+                            displacement as isize,
+                        ));
                     }
-                    _ => Err("It should be impossible to get here")
+                    _ => Err("It should be impossible to get here"),
                 }
             }
             Mode::RegisterMode => {

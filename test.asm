@@ -16,4 +16,4 @@
 
 bits 16
 
-add ax, [bx+si+12]
+add cl, 22
