@@ -1,38 +1,38 @@
 use crate::{
-    instructions::{call, immediate_to_register, jump, pop, register_memory_register, Instruction},
+    instructions::{call, immediate_to_register, jump, pop, register_memory_register, Mnemonic},
     parse_twos_complement_int,
     registers::{Register, RegisterMemory, SegmentRegister},
     Result,
 };
 
-type Thunk = fn(&mut std::slice::Iter<u8>) -> Result<Instruction>;
+type Thunk = fn(&mut std::slice::Iter<u8>) -> Result<Mnemonic>;
 
 pub const OPCODE_TABLE: [Thunk; 168] = [
     // Add Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::ADD { dest, source })
+        Ok(Mnemonic::ADD { dest, source })
     },
     // Add Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::ADD { dest, source })
+        Ok(Mnemonic::ADD { dest, source })
     },
     // Add Reg8, Reg8/Mem8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        Ok(Instruction::ADD { dest, source })
+        Ok(Mnemonic::ADD { dest, source })
     },
     // Add Reg16, Reg16/Mem16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        Ok(Instruction::ADD { dest, source })
+        Ok(Mnemonic::ADD { dest, source })
     },
     // Add AL, Immediate8
     |iter| {
         let data = iter.next().unwrap();
         let operand = parse_twos_complement_int(*data as isize, false);
-        return Ok(Instruction::ADD {
+        return Ok(Mnemonic::ADD {
             dest: RegisterMemory::Register(Register::AL),
             source: RegisterMemory::Immediate(operand),
         });
@@ -41,40 +41,40 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     |iter| {
         let data = u16::from_le_bytes([*iter.next().unwrap(), *iter.next().unwrap()]);
         let operand = parse_twos_complement_int(data as isize, true);
-        return Ok(Instruction::ADD {
+        return Ok(Mnemonic::ADD {
             dest: RegisterMemory::Register(Register::AX),
             source: RegisterMemory::Immediate(operand),
         });
     },
     // Push ES
-    |_| Ok(Instruction::PUSHSEG(SegmentRegister::ES)),
+    |_| Ok(Mnemonic::PUSHSEG(SegmentRegister::ES)),
     // Pop ES
-    |_| Ok(Instruction::POPSEG(SegmentRegister::ES)),
+    |_| Ok(Mnemonic::POPSEG(SegmentRegister::ES)),
     // Or Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::OR { dest, source })
+        Ok(Mnemonic::OR { dest, source })
     },
     // Or  Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::OR { dest, source })
+        Ok(Mnemonic::OR { dest, source })
     },
     // Or Reg8, Reg8/Mem8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        Ok(Instruction::OR { dest, source })
+        Ok(Mnemonic::OR { dest, source })
     },
     // Or Reg16, Reg16/Mem16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::OR { dest, source })
+        Ok(Mnemonic::OR { dest, source })
     },
     // Or AL, Immediate8
     |iter| {
         let data = iter.next().unwrap();
         let operand = parse_twos_complement_int(*data as isize, false);
-        return Ok(Instruction::OR {
+        return Ok(Mnemonic::OR {
             dest: RegisterMemory::Register(Register::AL),
             source: RegisterMemory::Immediate(operand),
         });
@@ -83,39 +83,39 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     |iter| {
         let data = u16::from_le_bytes([*iter.next().unwrap(), *iter.next().unwrap()]);
         let operand = parse_twos_complement_int(data as isize, true);
-        return Ok(Instruction::OR {
+        return Ok(Mnemonic::OR {
             dest: RegisterMemory::Register(Register::AX),
             source: RegisterMemory::Immediate(operand),
         });
     },
     // Push CS
-    |_| Ok(Instruction::PUSHSEG(SegmentRegister::CS)),
-    |_| Ok(Instruction::NOP),
+    |_| Ok(Mnemonic::PUSHSEG(SegmentRegister::CS)),
+    |_| Ok(Mnemonic::NOP),
     // Add with carry, Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::ADC { dest, source })
+        Ok(Mnemonic::ADC { dest, source })
     },
     // Add w. carry, Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::ADC { dest, source })
+        Ok(Mnemonic::ADC { dest, source })
     },
     // Add w. carry, Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        Ok(Instruction::ADC { dest, source })
+        Ok(Mnemonic::ADC { dest, source })
     },
     // Add w. carry, Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        Ok(Instruction::ADC { dest, source })
+        Ok(Mnemonic::ADC { dest, source })
     },
     // ADC AL, Immediate8
     |iter| {
         let data = iter.next().unwrap();
         let operand = parse_twos_complement_int(*data as isize, false);
-        return Ok(Instruction::ADC {
+        return Ok(Mnemonic::ADC {
             dest: RegisterMemory::Register(Register::AL),
             source: RegisterMemory::Immediate(operand),
         });
@@ -124,39 +124,39 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     |iter| {
         let data = u16::from_le_bytes([*iter.next().unwrap(), *iter.next().unwrap()]);
         let operand = parse_twos_complement_int(data as isize, true);
-        return Ok(Instruction::ADC {
+        return Ok(Mnemonic::ADC {
             dest: RegisterMemory::Register(Register::AX),
             source: RegisterMemory::Immediate(operand),
         });
     },
     // Push SS
-    |_| Ok(Instruction::PUSHSEG(SegmentRegister::SS)),
-    |_| Ok(Instruction::POPSEG(SegmentRegister::SS)),
+    |_| Ok(Mnemonic::PUSHSEG(SegmentRegister::SS)),
+    |_| Ok(Mnemonic::POPSEG(SegmentRegister::SS)),
     // Subtract w. borrow, Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::SBB { dest, source })
+        Ok(Mnemonic::SBB { dest, source })
     },
     // Subtract w. borrow, Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::SBB { dest, source })
+        Ok(Mnemonic::SBB { dest, source })
     },
     // Subtract w. borrow, Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        Ok(Instruction::SBB { dest, source })
+        Ok(Mnemonic::SBB { dest, source })
     },
     // Subtract w. borrow, Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        Ok(Instruction::SBB { dest, source })
+        Ok(Mnemonic::SBB { dest, source })
     },
     // SBB AL, Immediate8
     |iter| {
         let data = iter.next().unwrap();
         let operand = parse_twos_complement_int(*data as isize, false);
-        return Ok(Instruction::SBB {
+        return Ok(Mnemonic::SBB {
             dest: RegisterMemory::Register(Register::AL),
             source: RegisterMemory::Immediate(operand),
         });
@@ -165,39 +165,39 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     |iter| {
         let data = u16::from_le_bytes([*iter.next().unwrap(), *iter.next().unwrap()]);
         let operand = parse_twos_complement_int(data as isize, true);
-        return Ok(Instruction::SBB {
+        return Ok(Mnemonic::SBB {
             dest: RegisterMemory::Register(Register::AX),
             source: RegisterMemory::Immediate(operand),
         });
     },
     // PUSH & POP DS
-    |_| Ok(Instruction::PUSHSEG(SegmentRegister::DS)),
-    |_| Ok(Instruction::POPSEG(SegmentRegister::DS)),
+    |_| Ok(Mnemonic::PUSHSEG(SegmentRegister::DS)),
+    |_| Ok(Mnemonic::POPSEG(SegmentRegister::DS)),
     // AND Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::AND { dest, source })
+        Ok(Mnemonic::AND { dest, source })
     },
     // AND, Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::AND { dest, source })
+        Ok(Mnemonic::AND { dest, source })
     },
     // AND Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        Ok(Instruction::AND { dest, source })
+        Ok(Mnemonic::AND { dest, source })
     },
     // AND Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        Ok(Instruction::AND { dest, source })
+        Ok(Mnemonic::AND { dest, source })
     },
     // AND AL, Immediate8
     |iter| {
         let data = iter.next().unwrap();
         let operand = parse_twos_complement_int(*data as isize, false);
-        return Ok(Instruction::AND {
+        return Ok(Mnemonic::AND {
             dest: RegisterMemory::Register(Register::AL),
             source: RegisterMemory::Immediate(operand),
         });
@@ -206,40 +206,40 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     |iter| {
         let data = u16::from_le_bytes([*iter.next().unwrap(), *iter.next().unwrap()]);
         let operand = parse_twos_complement_int(data as isize, true);
-        return Ok(Instruction::AND {
+        return Ok(Mnemonic::AND {
             dest: RegisterMemory::Register(Register::AX),
             source: RegisterMemory::Immediate(operand),
         });
     },
     // segment override prefix (ES)
-    |_| Ok(Instruction::SEGMENTOVERRIDE(SegmentRegister::ES)),
+    |_| Ok(Mnemonic::SEGMENTOVERRIDE(SegmentRegister::ES)),
     // increment adjust for add
-    |_| Ok(Instruction::DAA),
+    |_| Ok(Mnemonic::DAA),
     // Subtract, Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::SUB { dest, source })
+        Ok(Mnemonic::SUB { dest, source })
     },
     // Subtract, Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::SUB { dest, source })
+        Ok(Mnemonic::SUB { dest, source })
     },
     // Subtract, Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        Ok(Instruction::SUB { dest, source })
+        Ok(Mnemonic::SUB { dest, source })
     },
     // Subtract, Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        Ok(Instruction::SUB { dest, source })
+        Ok(Mnemonic::SUB { dest, source })
     },
     // Sub AL, Immediate8
     |iter| {
         let data = iter.next().unwrap();
         let operand = parse_twos_complement_int(*data as isize, false);
-        return Ok(Instruction::SUB {
+        return Ok(Mnemonic::SUB {
             dest: RegisterMemory::Register(Register::AL),
             source: RegisterMemory::Immediate(operand),
         });
@@ -248,40 +248,40 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     |iter| {
         let data = u16::from_le_bytes([*iter.next().unwrap(), *iter.next().unwrap()]);
         let operand = parse_twos_complement_int(data as isize, true);
-        return Ok(Instruction::SUB {
+        return Ok(Mnemonic::SUB {
             dest: RegisterMemory::Register(Register::AX),
             source: RegisterMemory::Immediate(operand),
         });
     },
     // segment override prefix (CS)
-    |_| Ok(Instruction::SEGMENTOVERRIDE(SegmentRegister::CS)),
+    |_| Ok(Mnemonic::SEGMENTOVERRIDE(SegmentRegister::CS)),
     // increment adjust for subtract
-    |_| Ok(Instruction::DAS),
+    |_| Ok(Mnemonic::DAS),
     // XOR Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::XOR { dest, source })
+        Ok(Mnemonic::XOR { dest, source })
     },
     // XOR Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::XOR { dest, source })
+        Ok(Mnemonic::XOR { dest, source })
     },
     // XOR Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        Ok(Instruction::XOR { dest, source })
+        Ok(Mnemonic::XOR { dest, source })
     },
     // XOR Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        Ok(Instruction::XOR { dest, source })
+        Ok(Mnemonic::XOR { dest, source })
     },
     // XOR AL, Immediate8
     |iter| {
         let data = iter.next().unwrap();
         let operand = parse_twos_complement_int(*data as isize, false);
-        return Ok(Instruction::XOR {
+        return Ok(Mnemonic::XOR {
             dest: RegisterMemory::Register(Register::AL),
             source: RegisterMemory::Immediate(operand),
         });
@@ -290,40 +290,40 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     |iter| {
         let data = u16::from_le_bytes([*iter.next().unwrap(), *iter.next().unwrap()]);
         let operand = parse_twos_complement_int(data as isize, true);
-        return Ok(Instruction::XOR {
+        return Ok(Mnemonic::XOR {
             dest: RegisterMemory::Register(Register::AX),
             source: RegisterMemory::Immediate(operand),
         });
     },
     // segment override prefix (SS)
-    |_| Ok(Instruction::SEGMENTOVERRIDE(SegmentRegister::SS)),
+    |_| Ok(Mnemonic::SEGMENTOVERRIDE(SegmentRegister::SS)),
     // ascii adjust for add
-    |_| Ok(Instruction::AAA),
+    |_| Ok(Mnemonic::AAA),
     // CMP Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::CMP { dest, source })
+        Ok(Mnemonic::CMP { dest, source })
     },
     // CMP Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::CMP { dest, source })
+        Ok(Mnemonic::CMP { dest, source })
     },
     // CMP Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        Ok(Instruction::CMP { dest, source })
+        Ok(Mnemonic::CMP { dest, source })
     },
     // CMP Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        Ok(Instruction::CMP { dest, source })
+        Ok(Mnemonic::CMP { dest, source })
     },
     // CMP AL, Immediate8
     |iter| {
         let data = iter.next().unwrap();
         let operand = parse_twos_complement_int(*data as isize, false);
-        return Ok(Instruction::CMP {
+        return Ok(Mnemonic::CMP {
             dest: RegisterMemory::Register(Register::AL),
             source: RegisterMemory::Immediate(operand),
         });
@@ -332,146 +332,146 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     |iter| {
         let data = u16::from_le_bytes([*iter.next().unwrap(), *iter.next().unwrap()]);
         let operand = parse_twos_complement_int(data as isize, true);
-        return Ok(Instruction::CMP {
+        return Ok(Mnemonic::CMP {
             dest: RegisterMemory::Register(Register::AX),
             source: RegisterMemory::Immediate(operand),
         });
     },
     // segment override prefix (DS)
-    |_| Ok(Instruction::SEGMENTOVERRIDE(SegmentRegister::DS)),
+    |_| Ok(Mnemonic::SEGMENTOVERRIDE(SegmentRegister::DS)),
     // ascii adjust for subtract
-    |_| Ok(Instruction::AAS),
+    |_| Ok(Mnemonic::AAS),
     // Increment register
-    |_| Ok(Instruction::INC(Register::AX)),
-    |_| Ok(Instruction::INC(Register::CX)),
-    |_| Ok(Instruction::INC(Register::DX)),
-    |_| Ok(Instruction::INC(Register::BX)),
-    |_| Ok(Instruction::INC(Register::SP)),
-    |_| Ok(Instruction::INC(Register::BP)),
-    |_| Ok(Instruction::INC(Register::SI)),
-    |_| Ok(Instruction::INC(Register::DI)),
+    |_| Ok(Mnemonic::INC(Register::AX)),
+    |_| Ok(Mnemonic::INC(Register::CX)),
+    |_| Ok(Mnemonic::INC(Register::DX)),
+    |_| Ok(Mnemonic::INC(Register::BX)),
+    |_| Ok(Mnemonic::INC(Register::SP)),
+    |_| Ok(Mnemonic::INC(Register::BP)),
+    |_| Ok(Mnemonic::INC(Register::SI)),
+    |_| Ok(Mnemonic::INC(Register::DI)),
     // Decrement register
-    |_| Ok(Instruction::DEC(Register::AX)),
-    |_| Ok(Instruction::DEC(Register::CX)),
-    |_| Ok(Instruction::DEC(Register::DX)),
-    |_| Ok(Instruction::DEC(Register::BX)),
-    |_| Ok(Instruction::DEC(Register::SP)),
-    |_| Ok(Instruction::DEC(Register::BP)),
-    |_| Ok(Instruction::DEC(Register::SI)),
-    |_| Ok(Instruction::DEC(Register::DI)),
+    |_| Ok(Mnemonic::DEC(Register::AX)),
+    |_| Ok(Mnemonic::DEC(Register::CX)),
+    |_| Ok(Mnemonic::DEC(Register::DX)),
+    |_| Ok(Mnemonic::DEC(Register::BX)),
+    |_| Ok(Mnemonic::DEC(Register::SP)),
+    |_| Ok(Mnemonic::DEC(Register::BP)),
+    |_| Ok(Mnemonic::DEC(Register::SI)),
+    |_| Ok(Mnemonic::DEC(Register::DI)),
     // Push to register
-    |_| Ok(Instruction::PUSH(Register::AX)),
-    |_| Ok(Instruction::PUSH(Register::CX)),
-    |_| Ok(Instruction::PUSH(Register::DX)),
-    |_| Ok(Instruction::PUSH(Register::BX)),
-    |_| Ok(Instruction::PUSH(Register::SP)),
-    |_| Ok(Instruction::PUSH(Register::BP)),
-    |_| Ok(Instruction::PUSH(Register::SI)),
-    |_| Ok(Instruction::PUSH(Register::DI)),
+    |_| Ok(Mnemonic::PUSH(Register::AX)),
+    |_| Ok(Mnemonic::PUSH(Register::CX)),
+    |_| Ok(Mnemonic::PUSH(Register::DX)),
+    |_| Ok(Mnemonic::PUSH(Register::BX)),
+    |_| Ok(Mnemonic::PUSH(Register::SP)),
+    |_| Ok(Mnemonic::PUSH(Register::BP)),
+    |_| Ok(Mnemonic::PUSH(Register::SI)),
+    |_| Ok(Mnemonic::PUSH(Register::DI)),
     // Pop from register
-    |_| Ok(Instruction::POP(Register::AX)),
-    |_| Ok(Instruction::POP(Register::CX)),
-    |_| Ok(Instruction::POP(Register::DX)),
-    |_| Ok(Instruction::POP(Register::BX)),
-    |_| Ok(Instruction::POP(Register::SP)),
-    |_| Ok(Instruction::POP(Register::BP)),
-    |_| Ok(Instruction::POP(Register::SI)),
-    |_| Ok(Instruction::POP(Register::DI)),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
+    |_| Ok(Mnemonic::POP(Register::AX)),
+    |_| Ok(Mnemonic::POP(Register::CX)),
+    |_| Ok(Mnemonic::POP(Register::DX)),
+    |_| Ok(Mnemonic::POP(Register::BX)),
+    |_| Ok(Mnemonic::POP(Register::SP)),
+    |_| Ok(Mnemonic::POP(Register::BP)),
+    |_| Ok(Mnemonic::POP(Register::SI)),
+    |_| Ok(Mnemonic::POP(Register::DI)),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
     // Jump if overflow
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JO { label })
+        Ok(Mnemonic::JO { label })
     },
     // Jump not overflow
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JNO { label })
+        Ok(Mnemonic::JNO { label })
     },
     // Jump on below
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JB { label })
+        Ok(Mnemonic::JB { label })
     },
     // Jump on not below
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JNB { label })
+        Ok(Mnemonic::JNB { label })
     },
     // Jump on equal
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JE { label })
+        Ok(Mnemonic::JE { label })
     },
     // Jump on not equal
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JNE { label })
+        Ok(Mnemonic::JNE { label })
     },
     // Jump on below or equal/not above
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JBE { label })
+        Ok(Mnemonic::JBE { label })
     },
     // Jump on not below or equal/above
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JNBE { label })
+        Ok(Mnemonic::JNBE { label })
     },
     // Jump on sign
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JS { label })
+        Ok(Mnemonic::JS { label })
     },
     // Jump on not sign
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JNS { label })
+        Ok(Mnemonic::JNS { label })
     },
     // Jump on parity
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JP { label })
+        Ok(Mnemonic::JP { label })
     },
     // Jump on not parity
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JNP { label })
+        Ok(Mnemonic::JNP { label })
     },
     // Jump on less
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JL { label })
+        Ok(Mnemonic::JL { label })
     },
     // Jump on not less
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JNL { label })
+        Ok(Mnemonic::JNL { label })
     },
     // Jump on less or equal
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JLE { label })
+        Ok(Mnemonic::JLE { label })
     },
     // Jump on not less or equal
     |iter| {
         let label = jump(iter)?;
-        Ok(Instruction::JNLE { label })
+        Ok(Mnemonic::JNLE { label })
     },
     // ADD/OR/ADC/SBB/AND/SUB/XOR/CMP Immediate to register
     |iter| {
@@ -496,95 +496,95 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     // TEST reg8/mem8, reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::TEST { dest, source })
+        Ok(Mnemonic::TEST { dest, source })
     },
     // TEST reg16/mem16, reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::TEST { dest, source })
+        Ok(Mnemonic::TEST { dest, source })
     },
     // XCHG reg8/mem8, reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::XCHG { dest, source })
+        Ok(Mnemonic::XCHG { dest, source })
     },
     // XCHG reg16/mem16, reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::XCHG { dest, source })
+        Ok(Mnemonic::XCHG { dest, source })
     },
     // MOV reg8/mem8, reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::MOV { dest, source })
+        Ok(Mnemonic::MOV { dest, source })
     },
     // MOV reg16/mem16, reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::MOV { dest, source })
+        Ok(Mnemonic::MOV { dest, source })
     },
     // MOV reg8, mem8/reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        Ok(Instruction::MOV { dest, source })
+        Ok(Mnemonic::MOV { dest, source })
     },
     // MOV reg16, mem16/reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::MOV { dest, source })
+        Ok(Mnemonic::MOV { dest, source })
     },
     // TODO: MOV reg16/mem16, SEGREG
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::MOV { dest, source })
+        Ok(Mnemonic::MOV { dest, source })
     },
-    |_| Ok(Instruction::NOP),
+    |_| Ok(Mnemonic::NOP),
     // LEA REG16,MEM16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Instruction::LEA { dest, source })
+        Ok(Mnemonic::LEA { dest, source })
     },
     // TODO: MOV SEGREG, reg16/mem16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        Ok(Instruction::MOV { dest, source })
+        Ok(Mnemonic::MOV { dest, source })
     },
-    |_| Ok(Instruction::NOP),
+    |_| Ok(Mnemonic::NOP),
     |iter| {
         pop(true, iter)
     },
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
-    |_| Ok(Instruction::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
     // Exchange AX, AX ??
-    |_| Ok(Instruction::NOP),
+    |_| Ok(Mnemonic::NOP),
     // XCHG instructions
-    |_| Ok(Instruction::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::CX) }),
-    |_| Ok(Instruction::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::DX) }),
-    |_| Ok(Instruction::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::BX) }),
-    |_| Ok(Instruction::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::SP) }),
-    |_| Ok(Instruction::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::BP) }),
-    |_| Ok(Instruction::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::SI) }),
-    |_| Ok(Instruction::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::DI) }),
-    |_| Ok(Instruction::CWD),
+    |_| Ok(Mnemonic::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::CX) }),
+    |_| Ok(Mnemonic::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::DX) }),
+    |_| Ok(Mnemonic::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::BX) }),
+    |_| Ok(Mnemonic::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::SP) }),
+    |_| Ok(Mnemonic::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::BP) }),
+    |_| Ok(Mnemonic::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::SI) }),
+    |_| Ok(Mnemonic::XCHG { dest: RegisterMemory::Register(Register::AX), source: RegisterMemory::Register(Register::DI) }),
+    |_| Ok(Mnemonic::CWD),
     |iter| {
         call(iter)
     },
-    |_| Ok(Instruction::WAIT),
-    |_| Ok(Instruction::PUSHF),
-    |_| Ok(Instruction::POPF),
-    |_| Ok(Instruction::SAHF),
-    |_| Ok(Instruction::LAHF),
+    |_| Ok(Mnemonic::WAIT),
+    |_| Ok(Mnemonic::PUSHF),
+    |_| Ok(Mnemonic::POPF),
+    |_| Ok(Mnemonic::SAHF),
+    |_| Ok(Mnemonic::LAHF),
 ];
 
 #[cfg(test)]
 mod tests {
     use crate::registers::RegisterMemory;
-    use crate::{instructions::Instruction, opcodes::OPCODE_TABLE, registers::Register};
+    use crate::{instructions::Mnemonic, opcodes::OPCODE_TABLE, registers::Register};
     #[test]
     fn test_immediate_to_register_wide() {
         let binary = [0b10000001, 0b11001001, 0b00100110, 0b00000000];
@@ -593,7 +593,7 @@ mod tests {
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
         assert_eq!(
             instruction,
-            Instruction::OR {
+            Mnemonic::OR {
                 dest: RegisterMemory::Register(Register::CX),
                 source: RegisterMemory::Immediate(38)
             }
@@ -607,7 +607,7 @@ mod tests {
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
         assert_eq!(
             instruction,
-            Instruction::ADD {
+            Mnemonic::ADD {
                 dest: RegisterMemory::Register(Register::CL),
                 source: RegisterMemory::Immediate(38)
             }
@@ -621,7 +621,7 @@ mod tests {
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
         assert_eq!(
             instruction,
-            Instruction::OR {
+            Mnemonic::OR {
                 dest: RegisterMemory::Register(Register::AL),
                 source: RegisterMemory::Register(Register::SI),
             }
@@ -636,7 +636,7 @@ mod tests {
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
         assert_eq!(
             instruction,
-            Instruction::OR {
+            Mnemonic::OR {
                 dest: RegisterMemory::Register(Register::AL),
                 source: RegisterMemory::CombineRegistersData(Register::BX, Register::DI, 69),
             }
@@ -650,7 +650,7 @@ mod tests {
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
         assert_eq!(
             instruction,
-            Instruction::ADD {
+            Mnemonic::ADD {
                 dest: RegisterMemory::Register(Register::AL),
                 source: RegisterMemory::Immediate(69),
             }
@@ -665,7 +665,7 @@ mod tests {
         println!("{:?}", instruction);
         assert_eq!(
             instruction,
-            Instruction::ADD {
+            Mnemonic::ADD {
                 dest: RegisterMemory::Register(Register::AX),
                 source: RegisterMemory::Immediate(512),
             }
@@ -679,7 +679,7 @@ mod tests {
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
         assert_eq!(
             instruction,
-            Instruction::ADD {
+            Mnemonic::ADD {
                 source: RegisterMemory::CombineRegisters(Register::BX, Register::SI),
                 dest: RegisterMemory::Register(Register::AX)
             }
@@ -693,7 +693,7 @@ mod tests {
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
         assert_eq!(
             instruction,
-            Instruction::ADD {
+            Mnemonic::ADD {
                 dest: RegisterMemory::CombineRegisters(Register::BX, Register::SI),
                 source: RegisterMemory::Register(Register::AX)
             }
@@ -707,7 +707,7 @@ mod tests {
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
         assert_eq!(
             instruction,
-            Instruction::ADD {
+            Mnemonic::ADD {
                 source: RegisterMemory::CombineRegistersData(Register::BX, Register::SI, 69),
                 dest: RegisterMemory::Register(Register::AL)
             }
@@ -721,7 +721,7 @@ mod tests {
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
         assert_eq!(
             instruction,
-            Instruction::ADD {
+            Mnemonic::ADD {
                 dest: RegisterMemory::CombineRegistersData(Register::BX, Register::SI, 69),
                 source: RegisterMemory::Register(Register::AL)
             }
