@@ -11,22 +11,22 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     // Add Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        return Ok(Instruction::ADD { dest, source });
+        Ok(Instruction::ADD { dest, source })
     },
     // Add Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        return Ok(Instruction::ADD { dest, source });
+        Ok(Instruction::ADD { dest, source })
     },
     // Add Reg8, Reg8/Mem8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        return Ok(Instruction::ADD { dest, source });
+        Ok(Instruction::ADD { dest, source })
     },
     // Add Reg16, Reg16/Mem16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        return Ok(Instruction::ADD { dest, source });
+        Ok(Instruction::ADD { dest, source })
     },
     // Add AL, Immediate8
     |iter| {
@@ -53,22 +53,22 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     // Or Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        return Ok(Instruction::OR { dest, source });
+        Ok(Instruction::OR { dest, source })
     },
     // Or  Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        return Ok(Instruction::OR { dest, source });
+        Ok(Instruction::OR { dest, source })
     },
     // Or Reg8, Reg8/Mem8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        return Ok(Instruction::OR { dest, source });
+        Ok(Instruction::OR { dest, source })
     },
     // Or Reg16, Reg16/Mem16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        return Ok(Instruction::OR { dest, source });
+        Ok(Instruction::OR { dest, source })
     },
     // Or AL, Immediate8
     |iter| {
@@ -94,22 +94,22 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     // Add with carry, Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        return Ok(Instruction::ADC { dest, source });
+        Ok(Instruction::ADC { dest, source })
     },
     // Add w. carry, Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        return Ok(Instruction::ADC { dest, source });
+        Ok(Instruction::ADC { dest, source })
     },
     // Add w. carry, Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        return Ok(Instruction::ADC { dest, source });
+        Ok(Instruction::ADC { dest, source })
     },
     // Add w. carry, Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        return Ok(Instruction::ADC { dest, source });
+        Ok(Instruction::ADC { dest, source })
     },
     // ADC AL, Immediate8
     |iter| {
@@ -135,22 +135,22 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     // Subtract w. borrow, Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        return Ok(Instruction::SBB { dest, source });
+        Ok(Instruction::SBB { dest, source })
     },
     // Subtract w. borrow, Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        return Ok(Instruction::SBB { dest, source });
+        Ok(Instruction::SBB { dest, source })
     },
     // Subtract w. borrow, Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        return Ok(Instruction::SBB { dest, source });
+        Ok(Instruction::SBB { dest, source })
     },
     // Subtract w. borrow, Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        return Ok(Instruction::SBB { dest, source });
+        Ok(Instruction::SBB { dest, source })
     },
     // SBB AL, Immediate8
     |iter| {
@@ -176,22 +176,22 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     // AND Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        return Ok(Instruction::AND { dest, source });
+        Ok(Instruction::AND { dest, source })
     },
     // AND, Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        return Ok(Instruction::AND { dest, source });
+        Ok(Instruction::AND { dest, source })
     },
     // AND Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        return Ok(Instruction::AND { dest, source });
+        Ok(Instruction::AND { dest, source })
     },
     // AND Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        return Ok(Instruction::AND { dest, source });
+        Ok(Instruction::AND { dest, source })
     },
     // AND AL, Immediate8
     |iter| {
@@ -218,22 +218,22 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     // Subtract, Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        return Ok(Instruction::SUB { dest, source });
+        Ok(Instruction::SUB { dest, source })
     },
     // Subtract, Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        return Ok(Instruction::SUB { dest, source });
+        Ok(Instruction::SUB { dest, source })
     },
     // Subtract, Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        return Ok(Instruction::SUB { dest, source });
+        Ok(Instruction::SUB { dest, source })
     },
     // Subtract, Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        return Ok(Instruction::SUB { dest, source });
+        Ok(Instruction::SUB { dest, source })
     },
     // Sub AL, Immediate8
     |iter| {
@@ -260,22 +260,22 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     // XOR Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        return Ok(Instruction::XOR { dest, source });
+        Ok(Instruction::XOR { dest, source })
     },
     // XOR Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        return Ok(Instruction::XOR { dest, source });
+        Ok(Instruction::XOR { dest, source })
     },
     // XOR Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        return Ok(Instruction::XOR { dest, source });
+        Ok(Instruction::XOR { dest, source })
     },
     // XOR Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        return Ok(Instruction::XOR { dest, source });
+        Ok(Instruction::XOR { dest, source })
     },
     // XOR AL, Immediate8
     |iter| {
@@ -302,22 +302,22 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     // CMP Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
-        return Ok(Instruction::CMP { dest, source });
+        Ok(Instruction::CMP { dest, source })
     },
     // CMP Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        return Ok(Instruction::CMP { dest, source });
+        Ok(Instruction::CMP { dest, source })
     },
     // CMP Reg8, Reg8/Mem8,
     |iter| {
         let (dest, source) = register_memory_register(false, iter, true)?;
-        return Ok(Instruction::CMP { dest, source });
+        Ok(Instruction::CMP { dest, source })
     },
     // CMP Reg16, Reg16/Mem16,
     |iter| {
         let (dest, source) = register_memory_register(true, iter, true)?;
-        return Ok(Instruction::CMP { dest, source });
+        Ok(Instruction::CMP { dest, source })
     },
     // CMP AL, Immediate8
     |iter| {
@@ -396,82 +396,82 @@ pub const OPCODE_TABLE: [Thunk; 168] = [
     // Jump if overflow
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JO { label });
+        Ok(Instruction::JO { label })
     },
     // Jump not overflow
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JNO { label });
+        Ok(Instruction::JNO { label })
     },
     // Jump on below
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JB { label });
+        Ok(Instruction::JB { label })
     },
     // Jump on not below
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JNB { label });
+        Ok(Instruction::JNB { label })
     },
     // Jump on equal
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JE { label });
+        Ok(Instruction::JE { label })
     },
     // Jump on not equal
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JNE { label });
+        Ok(Instruction::JNE { label })
     },
     // Jump on below or equal/not above
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JBE { label });
+        Ok(Instruction::JBE { label })
     },
     // Jump on not below or equal/above
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JNBE { label });
+        Ok(Instruction::JNBE { label })
     },
     // Jump on sign
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JS { label });
+        Ok(Instruction::JS { label })
     },
     // Jump on not sign
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JNS { label });
+        Ok(Instruction::JNS { label })
     },
     // Jump on parity
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JP { label });
+        Ok(Instruction::JP { label })
     },
     // Jump on not parity
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JNP { label });
+        Ok(Instruction::JNP { label })
     },
     // Jump on less
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JL { label });
+        Ok(Instruction::JL { label })
     },
     // Jump on not less
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JNL { label });
+        Ok(Instruction::JNL { label })
     },
     // Jump on less or equal
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JLE { label });
+        Ok(Instruction::JLE { label })
     },
     // Jump on not less or equal
     |iter| {
         let label = jump(iter)?;
-        return Ok(Instruction::JNLE { label });
+        Ok(Instruction::JNLE { label })
     },
     // ADD/OR/ADC/SBB/AND/SUB/XOR/CMP Immediate to register
     |iter| {

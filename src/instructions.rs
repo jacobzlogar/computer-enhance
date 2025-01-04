@@ -35,7 +35,7 @@ impl TryFrom<u8> for ImmediateMode {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum Instruction {
+pub enum Mnemonic {
     WAIT,
     PUSHF,
     POPF,
@@ -162,7 +162,7 @@ pub struct ImmediateModeEncoding<I> {
     iter: I
 }
 
-impl<'a, I: Iterator<Item = &'a u8>> TryFrom<ImmediateModeEncoding<I>> for Instruction {
+impl<'a, I: Iterator<Item = &'a u8>> TryFrom<ImmediateModeEncoding<I>> for Mnemonic {
     type Error = Box<dyn std::error::Error + 'static>;
     fn try_from(mut value: ImmediateModeEncoding<I>) -> Result<Self> {
         let source: RegisterMemory;
@@ -174,35 +174,35 @@ impl<'a, I: Iterator<Item = &'a u8>> TryFrom<ImmediateModeEncoding<I>> for Instr
             source = RegisterMemory::Immediate(*value.iter.next().unwrap() as isize);
         }
         match value.mode {
-            ImmediateMode::ADD => Ok(Instruction::ADD {
+            ImmediateMode::ADD => Ok(Mnemonic::ADD {
                 dest: value.dest,
                 source,
             }),
-            ImmediateMode::OR => Ok(Instruction::OR {
+            ImmediateMode::OR => Ok(Mnemonic::OR {
                 dest: value.dest,
                 source,
             }),
-            ImmediateMode::ADC => Ok(Instruction::ADC {
+            ImmediateMode::ADC => Ok(Mnemonic::ADC {
                 dest: value.dest,
                 source,
             }),
-            ImmediateMode::SBB => Ok(Instruction::SBB {
+            ImmediateMode::SBB => Ok(Mnemonic::SBB {
                 dest: value.dest,
                 source,
             }),
-            ImmediateMode::AND => Ok(Instruction::AND {
+            ImmediateMode::AND => Ok(Mnemonic::AND {
                 dest: value.dest,
                 source,
             }),
-            ImmediateMode::SUB => Ok(Instruction::SUB {
+            ImmediateMode::SUB => Ok(Mnemonic::SUB {
                 dest: value.dest,
                 source,
             }),
-            ImmediateMode::XOR => Ok(Instruction::XOR {
+            ImmediateMode::XOR => Ok(Mnemonic::XOR {
                 dest: value.dest,
                 source,
             }),
-            ImmediateMode::CMP => Ok(Instruction::CMP {
+            ImmediateMode::CMP => Ok(Mnemonic::CMP {
                 dest: value.dest,
                 source,
             }),
@@ -251,7 +251,7 @@ pub fn jump<'a, I: Iterator<Item = &'a u8>>(
 pub fn immediate_to_register<'a, I: Iterator<Item = &'a u8>>(
     wide: bool,
     mut iter: I
-) -> Result<Instruction> {
+) -> Result<Mnemonic> {
     println!("{wide}");
     let data_byte = iter.next().unwrap();
     let mode = get_mode(&data_byte)?;
@@ -271,19 +271,19 @@ pub fn immediate_to_register<'a, I: Iterator<Item = &'a u8>>(
         iter,
         wide,
     };
-    let instruction = Instruction::try_from(im_encoding)?;
+    let instruction = Mnemonic::try_from(im_encoding)?;
     Ok(instruction)
 }
 
 pub fn pop<'a, I: Iterator<Item = &'a u8>>(
     wide: bool,
     mut iter: I
-) -> Result<Instruction> {
-    Ok(Instruction::NOP)
+) -> Result<Mnemonic> {
+    Ok(Mnemonic::NOP)
 }
 
 pub fn call<'a, I: Iterator<Item = &'a u8>>(
     mut iter: I
-) -> Result<Instruction> {
-    Ok(Instruction::CALL { far_proc: 0 })
+) -> Result<Mnemonic> {
+    Ok(Mnemonic::CALL { far_proc: 0 })
 }
