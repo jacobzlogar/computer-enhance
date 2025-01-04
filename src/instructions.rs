@@ -155,16 +155,16 @@ pub enum Instruction {
     },
 }
 
-pub struct ImmediateModeEncoding<'a> {
+pub struct ImmediateModeEncoding<I> {
     mode: ImmediateMode,
     dest: RegisterMemory,
     wide: bool,
-    iter: &'a mut std::slice::Iter<'a, u8>,
+    iter: I
 }
 
-impl<'a> TryFrom<ImmediateModeEncoding<'a>> for Instruction {
+impl<'a, I: Iterator<Item = &'a u8>> TryFrom<ImmediateModeEncoding<I>> for Instruction {
     type Error = Box<dyn std::error::Error + 'static>;
-    fn try_from(value: ImmediateModeEncoding) -> Result<Self> {
+    fn try_from(mut value: ImmediateModeEncoding<I>) -> Result<Self> {
         let source: RegisterMemory;
         if value.wide {
             let data =
@@ -215,9 +215,9 @@ fn get_mode(byte: &u8) -> Result<Mode> {
     Ok(mode)
 }
 
-pub fn register_memory_register<'a>(
+pub fn register_memory_register<'a, I: Iterator<Item = &'a u8>>(
     wide: bool,
-    iter: &'a mut std::slice::Iter<'a, u8>,
+    mut iter: I,
     reversed: bool,
 ) -> Result<(RegisterMemory, RegisterMemory)> {
     let data_byte = iter.next().unwrap();
@@ -229,7 +229,7 @@ pub fn register_memory_register<'a>(
         mode,
         rm,
         wide,
-        iter,
+        iter
     };
     if reversed {
         dest = RegisterMemory::try_from(encoding)?;
@@ -241,17 +241,20 @@ pub fn register_memory_register<'a>(
     Ok((dest, source))
 }
 
-pub fn jump<'a>(iter: &'a mut std::slice::Iter<'a, u8>) -> Result<u8> {
+
+pub fn jump<'a, I: Iterator<Item = &'a u8>>(
+    mut iter: I
+) -> Result<u8> {
     Ok(*iter.next().unwrap())
 }
 
-pub fn immediate_to_register<'a>(
+pub fn immediate_to_register<'a, I: Iterator<Item = &'a u8>>(
     wide: bool,
-    iter: &'a mut std::slice::Iter<'a, u8>,
+    mut iter: I
 ) -> Result<Instruction> {
     println!("{wide}");
     let data_byte = iter.next().unwrap();
-    let mode = get_mode(data_byte)?;
+    let mode = get_mode(&data_byte)?;
     let rm = data_byte & 7;
     let byte = (data_byte >> 3) & 7;
     let immediate = ImmediateMode::try_from(byte)?;
@@ -259,7 +262,7 @@ pub fn immediate_to_register<'a>(
         mode,
         rm,
         wide,
-        iter: &mut iter.clone(),
+        iter: &mut iter,
     };
     let dest = RegisterMemory::try_from(rm_encoding)?;
     let im_encoding = ImmediateModeEncoding {
@@ -272,15 +275,15 @@ pub fn immediate_to_register<'a>(
     Ok(instruction)
 }
 
-pub fn pop<'a>(
+pub fn pop<'a, I: Iterator<Item = &'a u8>>(
     wide: bool,
-    iter: &'a mut std::slice::Iter<'a, u8>
+    mut iter: I
 ) -> Result<Instruction> {
     Ok(Instruction::NOP)
 }
 
-pub fn call<'a>(
-    iter: &'a mut std::slice::Iter<'a, u8>
+pub fn call<'a, I: Iterator<Item = &'a u8>>(
+    mut iter: I
 ) -> Result<Instruction> {
     Ok(Instruction::CALL { far_proc: 0 })
 }

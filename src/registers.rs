@@ -75,11 +75,11 @@ impl TryFrom<u8> for Mode {
 }
 
 #[derive(Debug)]
-pub struct RegisterMemoryEncoding<'a> {
+pub struct RegisterMemoryEncoding<I> {
     pub rm: u8,
     pub mode: Mode,
     pub wide: bool,
-    pub iter: &'a mut std::slice::Iter<'a, u8>,
+    pub iter: I
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -95,9 +95,9 @@ pub enum RegisterMemory {
     Immediate(isize),
 }
 
-impl<'a> TryFrom<RegisterMemoryEncoding<'a>> for RegisterMemory {
+impl<'a, I: Iterator<Item = &'a u8>> TryFrom<RegisterMemoryEncoding<I>> for RegisterMemory {
     type Error = &'static str;
-    fn try_from(value: RegisterMemoryEncoding) -> Result<Self, Self::Error> {
+    fn try_from(mut value: RegisterMemoryEncoding<I>) -> Result<Self, Self::Error> {
         match value.mode {
             Mode::MemoryMode => Ok(MEMORY_MODE_ENCODING[value.rm as usize]),
             Mode::MemoryModeDisplacement => {

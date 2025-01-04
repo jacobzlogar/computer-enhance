@@ -5,9 +5,9 @@ use crate::{
     Result,
 };
 
-type Thunk = for<'a> fn(&'a mut std::slice::Iter<'a, u8>) -> Result<Instruction>;
+type Thunk = fn(&mut std::slice::Iter<u8>) -> Result<Instruction>;
 
-const OPCODE_TABLE: [Thunk; 168] = [
+pub const OPCODE_TABLE: [Thunk; 168] = [
     // Add Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
