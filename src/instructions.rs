@@ -1,8 +1,7 @@
 use crate::{
-    registers::{
+    parse_twos_complement_int, registers::{
         Mode, Register, RegisterEncoding, RegisterMemory, RegisterMemoryEncoding, SegmentRegister,
-    },
-    Result,
+    }, Result
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -36,6 +35,86 @@ impl TryFrom<u8> for ImmediateMode {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Mnemonic {
+    XLAT,
+    ESC,
+    LOOPNE {
+        short_label: isize
+    },
+    LOOPE {
+        short_label: isize
+    },
+    LOOP {
+        short_label: isize,
+    },
+    IN {
+        dest: RegisterMemory,
+        source: RegisterMemory
+    },
+    OUT {
+        dest: RegisterMemory,
+        source: RegisterMemory
+    },
+    INTO,
+    IRET,
+    AAM,
+    AAD,
+    SAR {
+        dest: RegisterMemory,
+        source: RegisterMemory
+    },
+    SHR {
+        dest: RegisterMemory,
+        source: RegisterMemory
+    },
+    SAL {
+        dest: RegisterMemory,
+        source: RegisterMemory
+    },
+    RCR {
+        dest: RegisterMemory,
+        source: RegisterMemory
+    },
+    RCL {
+        dest: RegisterMemory,
+        source: RegisterMemory
+    },
+    ROR {
+        dest: RegisterMemory,
+        source: RegisterMemory
+    },
+    ROL {
+        dest: RegisterMemory,
+        source: RegisterMemory
+    },
+    INT {
+        value: isize,
+    },
+    LDS {
+        dest: RegisterMemory,
+        source: RegisterMemory,
+    },
+    LES {
+        dest: RegisterMemory,
+        source: RegisterMemory,
+    },
+    RET {
+        segment: Option<isize>,
+    },
+    MOVS {
+        wide: bool,
+    },
+    CMPS {
+        wide: bool,
+    },
+    STOS {
+        wide: bool,
+    },
+    LODS {
+        wide: bool,
+    },
+    SCAS {
+        wide: bool,
+    },
     WAIT,
     PUSHF,
     POPF,
@@ -43,15 +122,15 @@ pub enum Mnemonic {
     LAHF,
     CWD,
     CALL {
-        far_proc: usize
+        far_proc: usize,
     },
     LEA {
         dest: RegisterMemory,
-        source: RegisterMemory
+        source: RegisterMemory,
     },
     MOV {
         dest: RegisterMemory,
-        source: RegisterMemory
+        source: RegisterMemory,
     },
     INC(Register),
     DEC(Register),
@@ -100,6 +179,17 @@ pub enum Mnemonic {
     XOR {
         dest: RegisterMemory,
         source: RegisterMemory,
+    },
+    JMP {
+        label: isize
+    },
+    LOCK,
+    REPNE,
+    REP,
+    HLT,
+    CMC,
+    JCXZ {
+        label: u8,
     },
     JO {
         label: u8,
@@ -153,13 +243,42 @@ pub enum Mnemonic {
         dest: RegisterMemory,
         source: RegisterMemory,
     },
+    NOT {
+        dest: RegisterMemory,
+        source: RegisterMemory,
+    },
+    NEG {
+        dest: RegisterMemory,
+        source: RegisterMemory,
+    },
+    MUL {
+        dest: RegisterMemory,
+        source: RegisterMemory,
+    },
+    IMUL {
+        dest: RegisterMemory,
+        source: RegisterMemory,
+    },
+    DIV {
+        dest: RegisterMemory,
+        source: RegisterMemory,
+    },
+    IDIV {
+        dest: RegisterMemory,
+        source: RegisterMemory,
+    },
+    CLC,
+    STC,
+    CLI,
+    CLD,
+    STD
 }
 
 pub struct ImmediateModeEncoding<I> {
     mode: ImmediateMode,
     dest: RegisterMemory,
     wide: bool,
-    iter: I
+    iter: I,
 }
 
 impl<'a, I: Iterator<Item = &'a u8>> TryFrom<ImmediateModeEncoding<I>> for Mnemonic {
@@ -229,30 +348,52 @@ pub fn register_memory_register<'a, I: Iterator<Item = &'a u8>>(
         mode,
         rm,
         wide,
-        iter
+        iter,
     };
     if reversed {
-        dest = RegisterMemory::try_from(encoding)?;
-        source = RegisterMemory::try_from(RegisterEncoding { byte, wide })?;
-    } else {
         source = RegisterMemory::try_from(encoding)?;
         dest = RegisterMemory::try_from(RegisterEncoding { byte, wide })?;
+    } else {
+        dest = RegisterMemory::try_from(encoding)?;
+        source = RegisterMemory::try_from(RegisterEncoding { byte, wide })?;
     }
     Ok((dest, source))
 }
 
-
-pub fn jump<'a, I: Iterator<Item = &'a u8>>(
-    mut iter: I
-) -> Result<u8> {
+pub fn jump<'a, I: Iterator<Item = &'a u8>>(mut iter: I) -> Result<u8> {
     Ok(*iter.next().unwrap())
 }
 
-pub fn immediate_to_register<'a, I: Iterator<Item = &'a u8>>(
+pub fn immediate_to_memory<'a, I: Iterator<Item = &'a u8>>(
     wide: bool,
     mut iter: I
 ) -> Result<Mnemonic> {
-    println!("{wide}");
+    let data_byte = iter.next().unwrap();
+    let rm = data_byte & 7;
+    let mode = get_mode(&data_byte)?;
+    let rm_encoding = RegisterMemoryEncoding {
+        mode,
+        rm,
+        wide,
+        iter: &mut iter,
+    };
+    let dest = RegisterMemory::try_from(rm_encoding)?;
+    let mut operand: isize;
+    if wide {
+        operand =
+            u16::from_le_bytes([*iter.next().unwrap(), *iter.next().unwrap()]) as isize;
+    } else {
+        operand = *iter.next().unwrap() as isize;
+    }
+    operand = parse_twos_complement_int(operand, wide);
+    Ok(Mnemonic::MOV { dest, source: RegisterMemory::Immediate(operand as isize) })
+}
+
+pub fn immediate_to_register<'a, I: Iterator<Item = &'a u8>>(
+    register_wide: bool,
+    immediate_wide: bool,
+    mut iter: I,
+) -> Result<Mnemonic> {
     let data_byte = iter.next().unwrap();
     let mode = get_mode(&data_byte)?;
     let rm = data_byte & 7;
@@ -261,7 +402,7 @@ pub fn immediate_to_register<'a, I: Iterator<Item = &'a u8>>(
     let rm_encoding = RegisterMemoryEncoding {
         mode,
         rm,
-        wide,
+        wide: register_wide,
         iter: &mut iter,
     };
     let dest = RegisterMemory::try_from(rm_encoding)?;
@@ -269,21 +410,16 @@ pub fn immediate_to_register<'a, I: Iterator<Item = &'a u8>>(
         dest,
         mode: immediate,
         iter,
-        wide,
+        wide: immediate_wide,
     };
     let instruction = Mnemonic::try_from(im_encoding)?;
     Ok(instruction)
 }
 
-pub fn pop<'a, I: Iterator<Item = &'a u8>>(
-    wide: bool,
-    mut iter: I
-) -> Result<Mnemonic> {
+pub fn pop<'a, I: Iterator<Item = &'a u8>>(wide: bool, mut iter: I) -> Result<Mnemonic> {
     Ok(Mnemonic::NOP)
 }
 
-pub fn call<'a, I: Iterator<Item = &'a u8>>(
-    mut iter: I
-) -> Result<Mnemonic> {
+pub fn call<'a, I: Iterator<Item = &'a u8>>(mut iter: I) -> Result<Mnemonic> {
     Ok(Mnemonic::CALL { far_proc: 0 })
 }

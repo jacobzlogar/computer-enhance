@@ -16,43 +16,5 @@
 
 bits 16
 
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
-add cl, 22
+label: 
+jcxz label

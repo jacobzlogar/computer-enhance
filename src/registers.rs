@@ -1,3 +1,5 @@
+use crate::parse_twos_complement_int;
+
 const MEMORY_MODE_ENCODING: [RegisterMemory; 8] = [
     RegisterMemory::CombineRegisters(Register::BX, Register::SI),
     RegisterMemory::CombineRegisters(Register::BX, Register::DI),
@@ -5,7 +7,7 @@ const MEMORY_MODE_ENCODING: [RegisterMemory; 8] = [
     RegisterMemory::CombineRegisters(Register::BP, Register::DI),
     RegisterMemory::Register(Register::SI),
     RegisterMemory::Register(Register::DI),
-    RegisterMemory::DirectAddress,
+    RegisterMemory::DirectAddress(0),
     RegisterMemory::Register(Register::BX),
 ];
 
@@ -79,7 +81,7 @@ pub struct RegisterMemoryEncoding<I> {
     pub rm: u8,
     pub mode: Mode,
     pub wide: bool,
-    pub iter: I
+    pub iter: I,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -87,7 +89,7 @@ pub enum RegisterMemory {
     SegmentRegister(SegmentRegister),
     Register(Register),
     CombineRegisters(Register, Register),
-    DirectAddress,
+    DirectAddress(isize),
     RegisterData(Register, isize),
     RegisterDataWide(Register, isize),
     CombineRegistersData(Register, Register, isize),
@@ -99,34 +101,49 @@ impl<'a, I: Iterator<Item = &'a u8>> TryFrom<RegisterMemoryEncoding<I>> for Regi
     type Error = &'static str;
     fn try_from(mut value: RegisterMemoryEncoding<I>) -> Result<Self, Self::Error> {
         match value.mode {
-            Mode::MemoryMode => Ok(MEMORY_MODE_ENCODING[value.rm as usize]),
+            Mode::MemoryMode => {
+                let memory_mode = MEMORY_MODE_ENCODING[value.rm as usize];
+                match memory_mode {
+                    Self::DirectAddress(_) => {
+                        let mut operand: isize;
+                        if value.wide {
+                            operand = u16::from_le_bytes([*value.iter.next().unwrap(), *value.iter.next().unwrap()]) as isize;
+                        } else {
+                            operand = *value.iter.next().unwrap() as isize;
+                        }
+                        operand = parse_twos_complement_int(operand, value.wide);
+                        Ok(Self::DirectAddress(operand))
+                    }
+                    _ => Ok(memory_mode)
+                }
+            },
             Mode::MemoryModeDisplacement => {
-                let displacement = value.iter.next().unwrap();
+                let displacement =
+                    parse_twos_complement_int(*value.iter.next().unwrap() as isize, false);
                 let register_memory = MEMORY_MODE_DISPLACEMENT_ENCODING[value.rm as usize];
                 match register_memory {
-                    Self::CombineRegistersData(dest, source, _) => {
-                        return Ok(Self::CombineRegistersData(
-                            dest,
-                            source,
-                            *displacement as isize,
-                        ));
+                    Self::RegisterData(dest, _) => {
+                        return Ok(Self::RegisterData(dest, displacement));
                     }
-                    _ => Err("Something has gone terribly wrong"),
+                    Self::CombineRegistersData(dest, source, _) => {
+                        return Ok(Self::CombineRegistersData(dest, source, displacement));
+                    }
+                    _ => Err("Failed to parse displacement"),
                 }
             }
             Mode::MemoryModeDisplacementWide => {
-                let displacement =
+                let data =
                     u16::from_le_bytes([*value.iter.next().unwrap(), *value.iter.next().unwrap()]);
+                let displacement = parse_twos_complement_int(data as isize, true);
                 let register_memory = MEMORY_MODE_DISPLACEMENT_WIDE_ENCODING[value.rm as usize];
                 match register_memory {
-                    Self::CombineRegistersDataWide(dest, source, _) => {
-                        return Ok(Self::CombineRegistersDataWide(
-                            dest,
-                            source,
-                            displacement as isize,
-                        ));
+                    Self::RegisterDataWide(dest, _) => {
+                        return Ok(Self::RegisterDataWide(dest, displacement));
                     }
-                    _ => Err("It should be impossible to get here"),
+                    Self::CombineRegistersDataWide(dest, source, _) => {
+                        return Ok(Self::CombineRegistersDataWide(dest, source, displacement));
+                    }
+                    _ => Err("Failed to parse wide displacement"),
                 }
             }
             Mode::RegisterMode => {
