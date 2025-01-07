@@ -16,5 +16,11 @@
 
 bits 16
 
-label: 
-jcxz label
+SAL ax, 1
+push word [bp + si]
+push word [3000]
+push word [bx + di - 30]
+push cx
+push ax
+push dx
+push cs

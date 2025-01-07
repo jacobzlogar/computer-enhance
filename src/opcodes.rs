@@ -1,5 +1,7 @@
 use crate::{
-    instructions::{call, immediate_to_memory, immediate_to_register, jump, pop, register_memory_register, Mnemonic},
+    instructions::{
+        call, immediate_to_memory, immediate_to_register, jump, logic_register_memory, pop, register_memory_register, Mnemonic
+    },
     parse_twos_complement_int,
     registers::{Register, RegisterMemory, SegmentRegister},
     Result,
@@ -7,7 +9,7 @@ use crate::{
 
 type Thunk = fn(&mut std::slice::Iter<u8>) -> Result<Mnemonic>;
 
-pub const OPCODE_TABLE: [Thunk; 229] = [
+pub const OPCODE_TABLE: [Thunk; 256] = [
     // Add Reg8/Mem8, Reg8
     |iter| {
         let (dest, source) = register_memory_register(false, iter, false)?;
@@ -55,7 +57,7 @@ pub const OPCODE_TABLE: [Thunk; 229] = [
         let (dest, source) = register_memory_register(false, iter, false)?;
         Ok(Mnemonic::OR { dest, source })
     },
-    // Or  Reg16/Mem16, Reg16
+    // Or Reg16/Mem16, Reg16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
         Ok(Mnemonic::OR { dest, source })
@@ -837,12 +839,14 @@ pub const OPCODE_TABLE: [Thunk; 229] = [
     // LDS Reg16, Mem16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
-        Ok(Mnemonic::LES { dest, source })
+        Ok(Mnemonic::LDS { dest, source })
     },
     // MOV MEM8, IMMED8
     |iter| immediate_to_memory(false, iter),
     // MOV MEM16, IMMED16
     |iter| immediate_to_memory(true, iter),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::NOP),
     // TODO: RET, IMMED16(intersegment)
     |iter| Ok(Mnemonic::RET { segment: Some(0) }),
     |_| Ok(Mnemonic::RET { segment: None }),
@@ -853,29 +857,22 @@ pub const OPCODE_TABLE: [Thunk; 229] = [
     },
     |_| Ok(Mnemonic::INTO),
     |_| Ok(Mnemonic::IRET),
-    // TODO: SHR/SAR/ROL/ROR/RCL/RCR/SAL/SHL/SHR/SAR REG8/MEM8, 1
-    |iter| {
-        Ok(Mnemonic::NOP)
-    },
-    // TODO: SHR/SAR/ROL/ROR/RCL/RCR/SAL/SHL/SHR/SAR REG16/MEM16, 1
-    |iter| {
-        Ok(Mnemonic::NOP)
-    },
-    // TODO: SHR/SAR/ROL/ROR/RCL/RCR/SAL/SHL/SHR/SAR REG8/MEM8, CL
-    |iter| {
-        Ok(Mnemonic::NOP)
-    },
-    // TODO: SHR/SAR/ROL/ROR/RCL/RCR/SAL/SHL/SHR/SAR REG16/MEM16, CL
-    |iter| {
-        Ok(Mnemonic::NOP)
-    },
+    // SHR/SAR/ROL/ROR/RCL/RCR/SAL/SHL/SHR/SAR REG8/MEM8, 1
+    |iter| logic_register_memory(iter, false, RegisterMemory::Immediate(1)),
+    // SHR/SAR/ROL/ROR/RCL/RCR/SAL/SHL/SHR/SAR REG16/MEM16, 1
+    |iter| logic_register_memory(iter, true, RegisterMemory::Immediate(1)),
+    // SHR/SAR/ROL/ROR/RCL/RCR/SAL/SHL/SHR/SAR REG8/MEM8, CL
+    |iter| logic_register_memory(iter, false, RegisterMemory::Register(Register::CL)),
+    // SHR/SAR/ROL/ROR/RCL/RCR/SAL/SHL/SHR/SAR REG16/MEM16, CL
+    |iter| logic_register_memory(iter, true, RegisterMemory::Register(Register::CL)),
+    // 0xD4
     |_| Ok(Mnemonic::AAM),
     |_| Ok(Mnemonic::AAD),
     |_| Ok(Mnemonic::NOP),
-    // 0xD7
     |_| Ok(Mnemonic::XLAT),
-    // TODO: D9 -> DE are missing in the opcode table?
     // 0xD8
+    // TODO: D9 -> DE are missing in the opcode table??
+    |_| Ok(Mnemonic::ESC),
     |_| Ok(Mnemonic::ESC),
     |_| Ok(Mnemonic::ESC),
     |_| Ok(Mnemonic::ESC),
@@ -885,46 +882,127 @@ pub const OPCODE_TABLE: [Thunk; 229] = [
     // 0xDF
     |_| Ok(Mnemonic::ESC),
     |iter| {
-        Ok(Mnemonic::LOOPNE { short_label: *iter.next().unwrap() as isize })
+        return Ok(Mnemonic::LOOPNE {
+            short_label: *iter.next().unwrap() as isize,
+        });
     },
     |iter| {
-        Ok(Mnemonic::LOOPE { short_label: *iter.next().unwrap() as isize })
+        return Ok(Mnemonic::LOOPE {
+            short_label: *iter.next().unwrap() as isize,
+        });
     },
     |iter| {
-        Ok(Mnemonic::LOOP { short_label: *iter.next().unwrap() as isize })
+        return Ok(Mnemonic::LOOP {
+            short_label: *iter.next().unwrap() as isize,
+        });
     },
-    // TODO: WTF?
+    // JCXZ
     |iter| {
-        Ok(Mnemonic::JCXZ { label: *iter.next().unwrap() })
+        return Ok(Mnemonic::JCXZ {
+            label: *iter.next().unwrap(),
+        });
     },
     |iter| {
         let operand = *iter.next().unwrap();
-        Ok(Mnemonic::IN {
+        return Ok(Mnemonic::IN {
             dest: RegisterMemory::Register(Register::AL),
             source: RegisterMemory::Immediate(operand as isize),
-        })
+        });
     },
     |iter| {
         let operand = *iter.next().unwrap();
-        Ok(Mnemonic::IN {
+        return Ok(Mnemonic::IN {
             dest: RegisterMemory::Register(Register::AX),
             source: RegisterMemory::Immediate(operand as isize),
-        })
+        });
     },
     |iter| {
         let operand = *iter.next().unwrap();
-        Ok(Mnemonic::OUT {
+        return Ok(Mnemonic::OUT {
             dest: RegisterMemory::Register(Register::AL),
             source: RegisterMemory::Immediate(operand as isize),
-        })
+        });
     },
     |iter| {
         let operand = *iter.next().unwrap();
-        Ok(Mnemonic::OUT {
+        return Ok(Mnemonic::OUT {
             dest: RegisterMemory::Register(Register::AX),
             source: RegisterMemory::Immediate(operand as isize),
-        })
-    }
+        });
+    },
+    // CALL NEAR-PROC
+    |iter| {
+        let operand = *iter.next().unwrap();
+        return Ok(Mnemonic::CALL {
+            far_proc: None,
+            near_proc: Some(operand as isize),
+        });
+    },
+    // TODO: JMP NEAR-LABEL
+    |iter| {
+        let operand = *iter.next().unwrap();
+        return Ok(Mnemonic::JMP {
+            label: operand as isize,
+        });
+    },
+    // TODO: JMP FAR-LABEL
+    |iter| {
+        let operand = *iter.next().unwrap();
+        return Ok(Mnemonic::JMP {
+            label: operand as isize,
+        });
+    },
+    // TODO: JMP SHORT-LABEL
+    |iter| {
+        let operand = *iter.next().unwrap();
+        return Ok(Mnemonic::JMP {
+            label: operand as isize,
+        });
+    },
+    |_| {
+        return Ok(Mnemonic::IN {
+            dest: RegisterMemory::Register(Register::AL),
+            source: RegisterMemory::Register(Register::DX),
+        });
+    },
+    |_| {
+        return Ok(Mnemonic::IN {
+            dest: RegisterMemory::Register(Register::AX),
+            source: RegisterMemory::Register(Register::DX),
+        });
+    },
+    |_| {
+        return Ok(Mnemonic::OUT {
+            dest: RegisterMemory::Register(Register::AL),
+            source: RegisterMemory::Register(Register::DX),
+        });
+    },
+    |_| {
+        return Ok(Mnemonic::OUT {
+            dest: RegisterMemory::Register(Register::AX),
+            source: RegisterMemory::Register(Register::DX),
+        });
+    },
+    |_| Ok(Mnemonic::LOCK),
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::REPNE),
+    |_| Ok(Mnemonic::REP),
+    |_| Ok(Mnemonic::HLT),
+    |_| Ok(Mnemonic::CMC),
+    // TODO: TEST REG8/MEM8, IMMED8
+    |_| Ok(Mnemonic::NOP),
+    // TODO: TEST REG16/MEM16, IMMED16
+    |_| Ok(Mnemonic::NOP),
+    |_| Ok(Mnemonic::CLC),
+    |_| Ok(Mnemonic::STC),
+    |_| Ok(Mnemonic::CLI),
+    |_| Ok(Mnemonic::STI),
+    |_| Ok(Mnemonic::CLD),
+    |_| Ok(Mnemonic::STD),
+    // TODO: INC|DEC REG8/MEM8, INC|DEC MEM16
+    |_| Ok(Mnemonic::NOP),
+    // TODO: CALL|JMP|PUSH MEM16|REG16/MEM16
+    |_| Ok(Mnemonic::NOP),
 ];
 
 #[cfg(test)]
@@ -932,12 +1010,31 @@ mod tests {
     use crate::registers::RegisterMemory;
     use crate::{instructions::Mnemonic, opcodes::OPCODE_TABLE, registers::Register};
     #[test]
-    fn test_jcxz() {
-        let binary = [0b11100011, 0b00000000];
+    fn test_logical_operators() {
+        let binary = [0b11010001, 0b00010100];
         let mut iter = binary.iter();
         let byte = iter.next().unwrap();
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
-        println!("{:?}", instruction);
+        assert_eq!(
+            instruction,
+            Mnemonic::RCL {
+                dest: RegisterMemory::Register(Register::SI),
+                source: RegisterMemory::Immediate(1)
+            }
+        );
+    }
+    #[test]
+    fn test_jcxz() {
+        let binary = [0b11100011, 0b00000001];
+        let mut iter = binary.iter();
+        let byte = iter.next().unwrap();
+        let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
+        assert_eq!(
+            instruction,
+            Mnemonic::JCXZ {
+                label: 1
+            }
+        );
     }
     #[test]
     fn test_add_reg_mem_16_to_immediate8() {

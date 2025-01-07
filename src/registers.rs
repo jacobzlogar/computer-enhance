@@ -107,16 +107,19 @@ impl<'a, I: Iterator<Item = &'a u8>> TryFrom<RegisterMemoryEncoding<I>> for Regi
                     Self::DirectAddress(_) => {
                         let mut operand: isize;
                         if value.wide {
-                            operand = u16::from_le_bytes([*value.iter.next().unwrap(), *value.iter.next().unwrap()]) as isize;
+                            operand = u16::from_le_bytes([
+                                *value.iter.next().unwrap(),
+                                *value.iter.next().unwrap(),
+                            ]) as isize;
                         } else {
                             operand = *value.iter.next().unwrap() as isize;
                         }
                         operand = parse_twos_complement_int(operand, value.wide);
                         Ok(Self::DirectAddress(operand))
                     }
-                    _ => Ok(memory_mode)
+                    _ => Ok(memory_mode),
                 }
-            },
+            }
             Mode::MemoryModeDisplacement => {
                 let displacement =
                     parse_twos_complement_int(*value.iter.next().unwrap() as isize, false);

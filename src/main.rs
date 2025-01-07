@@ -6,6 +6,7 @@ fn main() -> Result<()> {
     let binary = std::fs::read(path)?;
     let mut iter = binary.iter();
     while let Some(byte) = iter.next() {
+        // println!("{:08b}", byte);
         let opcode_fn = OPCODE_TABLE[*byte as usize];
         let instruction = (opcode_fn)(&mut iter)?;
         println!("{:?}", instruction);
