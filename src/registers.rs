@@ -1,4 +1,4 @@
-use crate::parse_twos_complement_int;
+use crate::{parse_twos_complement_int, Result};
 
 const MEMORY_MODE_ENCODING: [RegisterMemory; 8] = [
     RegisterMemory::CombineRegisters(Register::BX, Register::SI),
@@ -64,14 +64,14 @@ pub enum Mode {
 }
 
 impl TryFrom<u8> for Mode {
-    type Error = &'static str;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    type Error = Box<dyn std::error::Error + 'static>;
+    fn try_from(value: u8) -> Result<Self> {
         match value {
             0 => Ok(Mode::MemoryMode),
             1 => Ok(Mode::MemoryModeDisplacement),
             2 => Ok(Mode::MemoryModeDisplacementWide),
             3 => Ok(Mode::RegisterMode),
-            _ => Err("Not a memory mode"),
+            _ => Err("Not a memory mode".into()),
         }
     }
 }
@@ -98,8 +98,8 @@ pub enum RegisterMemory {
 }
 
 impl<'a, I: Iterator<Item = &'a u8>> TryFrom<RegisterMemoryEncoding<I>> for RegisterMemory {
-    type Error = &'static str;
-    fn try_from(mut value: RegisterMemoryEncoding<I>) -> Result<Self, Self::Error> {
+    type Error = Box<dyn std::error::Error + 'static>;
+    fn try_from(mut value: RegisterMemoryEncoding<I>) -> Result<Self> {
         match value.mode {
             Mode::MemoryMode => {
                 let memory_mode = MEMORY_MODE_ENCODING[value.rm as usize];
@@ -131,7 +131,7 @@ impl<'a, I: Iterator<Item = &'a u8>> TryFrom<RegisterMemoryEncoding<I>> for Regi
                     Self::CombineRegistersData(dest, source, _) => {
                         return Ok(Self::CombineRegistersData(dest, source, displacement));
                     }
-                    _ => Err("Failed to parse displacement"),
+                    _ => Err("Failed to parse displacement".into()),
                 }
             }
             Mode::MemoryModeDisplacementWide => {
@@ -146,7 +146,7 @@ impl<'a, I: Iterator<Item = &'a u8>> TryFrom<RegisterMemoryEncoding<I>> for Regi
                     Self::CombineRegistersDataWide(dest, source, _) => {
                         return Ok(Self::CombineRegistersDataWide(dest, source, displacement));
                     }
-                    _ => Err("Failed to parse wide displacement"),
+                    _ => Err("Failed to parse wide displacement".into()),
                 }
             }
             Mode::RegisterMode => {
@@ -167,6 +167,19 @@ pub enum SegmentRegister {
     CS,
     SS,
     DS,
+}
+
+impl TryFrom<u8> for SegmentRegister {
+    type Error = Box<dyn std::error::Error + 'static>;
+    fn try_from(value: u8) -> Result<Self> {
+        match value {
+            0 => Ok(Self::ES),
+            1 => Ok(Self::CS),
+            2 => Ok(Self::SS),
+            3 => Ok(Self::DS),
+            _ => Err("Not a segment register".into())
+        }
+    }
 }
 
 #[repr(u8)]
@@ -196,8 +209,8 @@ pub struct RegisterEncoding {
 }
 
 impl TryFrom<RegisterEncoding> for RegisterMemory {
-    type Error = &'static str;
-    fn try_from(value: RegisterEncoding) -> Result<Self, Self::Error> {
+    type Error = Box<dyn std::error::Error + 'static>;
+    fn try_from(value: RegisterEncoding) -> Result<Self> {
         if value.wide {
             match value.byte {
                 0x00 => Ok(Self::Register(Register::AX)),
@@ -208,7 +221,7 @@ impl TryFrom<RegisterEncoding> for RegisterMemory {
                 0x05 => Ok(Self::Register(Register::BP)),
                 0x06 => Ok(Self::Register(Register::SI)),
                 0x07 => Ok(Self::Register(Register::DI)),
-                _ => Err("Not a 16-bit register"),
+                _ => Err("Not a 16-bit register".into()),
             }
         } else {
             match value.byte {
@@ -220,7 +233,7 @@ impl TryFrom<RegisterEncoding> for RegisterMemory {
                 0x05 => Ok(Self::Register(Register::CH)),
                 0x06 => Ok(Self::Register(Register::DH)),
                 0x07 => Ok(Self::Register(Register::BH)),
-                _ => Err("Not an 8-bit register"),
+                _ => Err("Not an 8-bit register".into()),
             }
         }
     }

@@ -1,6 +1,6 @@
 use crate::{
     instructions::{
-        call, immediate_to_memory, immediate_to_register, jump, logic_register_memory, pop, register_memory_register, Mnemonic
+        call, immediate_to_memory, immediate_to_register, jump, logic_register_memory, pop, register_memory_register, register_memory_segment, Mnemonic
     },
     parse_twos_complement_int,
     registers::{Register, RegisterMemory, SegmentRegister},
@@ -476,7 +476,7 @@ pub const OPCODE_TABLE: [Thunk; 256] = [
         Ok(Mnemonic::JNLE { label })
     },
     //0x80
-    // ADD/OR/ADC/SBB/AND/SUB/XOR/CMP Immediate to register
+    // ADD/OR/ADC/SBB/AND/SUB/XOR/CMP REG8/MEM8, IMMED8
     |iter| {
         let instruction = immediate_to_register(false, false, iter)?;
         Ok(instruction)
@@ -518,7 +518,7 @@ pub const OPCODE_TABLE: [Thunk; 256] = [
     },
     // MOV reg8/mem8, reg8
     |iter| {
-        let (dest, source) = register_memory_register(false, iter, true)?;
+        let (dest, source) = register_memory_register(false, iter, false)?;
         Ok(Mnemonic::MOV { dest, source })
     },
     // MOV reg16/mem16, reg16
@@ -536,22 +536,22 @@ pub const OPCODE_TABLE: [Thunk; 256] = [
         let (dest, source) = register_memory_register(true, iter, true)?;
         Ok(Mnemonic::MOV { dest, source })
     },
-    // TODO: MOV reg16/mem16, SEGREG
+    // MOV reg16/mem16, SEGREG
     |iter| {
-        let (dest, source) = register_memory_register(true, iter, true)?;
+        let (dest, source) = register_memory_segment(true, iter, false)?;
         Ok(Mnemonic::MOV { dest, source })
     },
-    |_| Ok(Mnemonic::NOP),
     // LEA REG16,MEM16
     |iter| {
         let (dest, source) = register_memory_register(true, iter, false)?;
         Ok(Mnemonic::LEA { dest, source })
     },
-    // TODO: MOV SEGREG, reg16/mem16
+    // MOV SEGREG, reg16/mem16
     |iter| {
-        let (dest, source) = register_memory_register(true, iter, true)?;
+        let (dest, source) = register_memory_segment(true, iter, true)?;
         Ok(Mnemonic::MOV { dest, source })
     },
+    // TODO: POP REG16/MEM16
     |iter| pop(true, iter),
     // Exchange AX, AX ??
     |_| Ok(Mnemonic::NOP),
@@ -598,6 +598,7 @@ pub const OPCODE_TABLE: [Thunk; 256] = [
             source: RegisterMemory::Register(Register::DI),
         })
     },
+    |_| Ok(Mnemonic::CBW),
     |_| Ok(Mnemonic::CWD),
     // CALL FAR_PROC
     |iter| call(iter),
@@ -642,7 +643,7 @@ pub const OPCODE_TABLE: [Thunk; 256] = [
             source: RegisterMemory::Register(Register::AX),
         })
     },
-    // TODO: CMPS
+    // TODO: MOVS
     |_| Ok(Mnemonic::MOVS { wide: false }),
     |_| Ok(Mnemonic::MOVS { wide: true }),
     // TODO: CMPS
@@ -1007,7 +1008,7 @@ pub const OPCODE_TABLE: [Thunk; 256] = [
 
 #[cfg(test)]
 mod tests {
-    use crate::registers::RegisterMemory;
+    use crate::registers::{RegisterMemory, SegmentRegister};
     use crate::{instructions::Mnemonic, opcodes::OPCODE_TABLE, registers::Register};
     #[test]
     fn test_logical_operators() {
@@ -1029,12 +1030,7 @@ mod tests {
         let mut iter = binary.iter();
         let byte = iter.next().unwrap();
         let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
-        assert_eq!(
-            instruction,
-            Mnemonic::JCXZ {
-                label: 1
-            }
-        );
+        assert_eq!(instruction, Mnemonic::JCXZ { label: 1 });
     }
     #[test]
     fn test_add_reg_mem_16_to_immediate8() {
@@ -1276,6 +1272,20 @@ mod tests {
             Mnemonic::ADD {
                 dest: RegisterMemory::CombineRegistersData(Register::BX, Register::SI, 69),
                 source: RegisterMemory::Register(Register::AL)
+            }
+        );
+    }
+    #[test]
+    fn test_mov_segment_register() {
+        let binary = [0b10001110, 0b11010000];
+        let mut iter = binary.iter();
+        let byte = iter.next().unwrap();
+        let instruction = (OPCODE_TABLE[*byte as usize])(&mut iter).unwrap();
+        assert_eq!(
+            instruction,
+            Mnemonic::MOV {
+                dest: RegisterMemory::Register(Register::AX),
+                source: RegisterMemory::SegmentRegister(SegmentRegister::SS),
             }
         );
     }

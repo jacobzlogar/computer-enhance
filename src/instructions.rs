@@ -28,7 +28,7 @@ impl TryFrom<u8> for ComparisonOperator {
             5 => Ok(Self::IMUL),
             6 => Ok(Self::DIV),
             7 => Ok(Self::IDIV),
-            _ => Err("Not a logic operator".into())
+            _ => Err("Not a comparison operator".into()),
         }
     }
 }
@@ -41,7 +41,7 @@ pub enum LogicOperator {
     ROL,
     ROR,
     RCL,
-    RCR
+    RCR,
 }
 
 impl TryFrom<u8> for LogicOperator {
@@ -55,7 +55,7 @@ impl TryFrom<u8> for LogicOperator {
             4 => Ok(Self::SHL),
             5 => Ok(Self::SHR),
             7 => Ok(Self::SAR),
-            _ => Err("Not a logic operator".into())
+            _ => Err("Not a logic operator".into()),
         }
     }
 }
@@ -93,12 +93,16 @@ impl TryFrom<u8> for ImmediateMode {
 pub struct LogicOperatorEncoding {
     operator: LogicOperator,
     dest: RegisterMemory,
-    source: RegisterMemory
+    source: RegisterMemory,
 }
 
 impl From<LogicOperatorEncoding> for Mnemonic {
     fn from(value: LogicOperatorEncoding) -> Self {
-        let LogicOperatorEncoding { operator, dest, source } = value;
+        let LogicOperatorEncoding {
+            operator,
+            dest,
+            source,
+        } = value;
         match operator {
             LogicOperator::SHL => Mnemonic::SAL { dest, source },
             LogicOperator::SHR => Mnemonic::SHR { dest, source },
@@ -113,6 +117,7 @@ impl From<LogicOperatorEncoding> for Mnemonic {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Mnemonic {
+    CBW,
     STI,
     XLAT,
     ESC,
@@ -373,14 +378,38 @@ impl<'a, I: Iterator<Item = &'a u8>> TryFrom<ImmediateModeEncoding<I>> for Mnemo
             source = RegisterMemory::Immediate(*value.iter.next().unwrap() as isize);
         }
         let mnemonic = match value.mode {
-            ImmediateMode::ADD => Mnemonic::ADD { dest: value.dest, source },
-            ImmediateMode::OR => Mnemonic::OR { dest: value.dest, source },
-            ImmediateMode::ADC => Mnemonic::ADC { dest: value.dest, source },
-            ImmediateMode::SBB => Mnemonic::SBB { dest: value.dest, source },
-            ImmediateMode::AND => Mnemonic::AND { dest: value.dest, source },
-            ImmediateMode::SUB => Mnemonic::SUB { dest: value.dest, source },
-            ImmediateMode::XOR => Mnemonic::XOR { dest: value.dest, source },
-            ImmediateMode::CMP => Mnemonic::CMP { dest: value.dest, source },
+            ImmediateMode::ADD => Mnemonic::ADD {
+                dest: value.dest,
+                source,
+            },
+            ImmediateMode::OR => Mnemonic::OR {
+                dest: value.dest,
+                source,
+            },
+            ImmediateMode::ADC => Mnemonic::ADC {
+                dest: value.dest,
+                source,
+            },
+            ImmediateMode::SBB => Mnemonic::SBB {
+                dest: value.dest,
+                source,
+            },
+            ImmediateMode::AND => Mnemonic::AND {
+                dest: value.dest,
+                source,
+            },
+            ImmediateMode::SUB => Mnemonic::SUB {
+                dest: value.dest,
+                source,
+            },
+            ImmediateMode::XOR => Mnemonic::XOR {
+                dest: value.dest,
+                source,
+            },
+            ImmediateMode::CMP => Mnemonic::CMP {
+                dest: value.dest,
+                source,
+            },
         };
 
         Ok(mnemonic)
@@ -507,6 +536,32 @@ pub fn logic_register_memory<'a, I: Iterator<Item = &'a u8>>(
     Ok(Mnemonic::from(LogicOperatorEncoding {
         operator,
         dest,
-        source
+        source,
     }))
+}
+
+pub fn register_memory_segment<'a, I: Iterator<Item = &'a u8>>(
+    wide: bool,
+    mut iter: I,
+    reversed: bool,
+) -> Result<(RegisterMemory, RegisterMemory)> {
+    let data_byte = iter.next().unwrap();
+    let mode = get_mode(&data_byte)?;
+    let rm = data_byte & 7;
+    let (source, dest): (RegisterMemory, RegisterMemory);
+    let segment = RegisterMemory::SegmentRegister(SegmentRegister::try_from((data_byte >> 3) & 7)?);
+    let rm_encoding = RegisterMemoryEncoding {
+        mode,
+        rm,
+        wide,
+        iter: &mut iter,
+    };
+    if reversed {
+        dest = RegisterMemory::try_from(rm_encoding)?;
+        source = segment;
+    } else {
+        source = RegisterMemory::try_from(rm_encoding)?;
+        dest = segment;
+    }
+    Ok((source, dest))
 }

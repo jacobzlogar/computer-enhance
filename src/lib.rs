@@ -1,6 +1,7 @@
 pub mod instructions;
 pub mod opcodes;
 pub mod registers;
+pub mod cpu;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
